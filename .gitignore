@@ -1,0 +1,21 @@
+# Python cache
+__pycache__/
+*.pyc
+
+# Virtual environment (if any)
+venv/
+.env/
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+
+# Logs / temp
+*.log
+
+# Data (optional if you don't want to upload ECG files)
+data/*.csv
