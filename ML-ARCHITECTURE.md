@@ -48,5 +48,9 @@ Dense Layer + Softmax
         │
         ▼
 P / QRS / T / Background mask
-
 ```
+
+RNN layer to be used: ?
+LSTM layer: ?
+Dense layer: ?
+Model and training params particulars: ?
