@@ -1,6 +1,4 @@
 #include <FastLED.h>
-
-// ---------------- CONFIG ----------------
 #define NUM_LEDS 144
 #define DATA_PIN 6
 #define RELAY_PIN 7
@@ -15,14 +13,13 @@ bool beatTriggered = false;
 unsigned long lastBeatTime = 0;
 int beatInterval = 800; // ms between beats
 
-// ---------------- SETUP ----------------
 void setup() {
   Serial.begin(115200);
 
   pinMode(RELAY_PIN, OUTPUT);
-  digitalWrite(RELAY_PIN, HIGH); // power ON
+  digitalWrite(RELAY_PIN, HIGH);
 
-  delay(1000); // stabilize power
+  delay(1000);
 
   FastLED.addLeds<WS2812B, DATA_PIN, GRB>(leds, NUM_LEDS);
   FastLED.setBrightness(60);
@@ -30,14 +27,14 @@ void setup() {
   FastLED.show();
 }
 
-// ---------------- HEARTBEAT TRIGGER ----------------
+// trigger
 void triggerBeat() {
   beatTriggered = true;
   wavePos = 0;
   lastBeatTime = millis();
 }
 
-// ---------------- FLOW ANIMATION ----------------
+// render flow, default state black
 void renderFlow() {
   fadeToBlackBy(leds, NUM_LEDS, 40);
 
@@ -57,10 +54,9 @@ void renderFlow() {
     beatTriggered = false;
   }
 }
-
-// ---------------- LUB-DUB EFFECT ----------------
+// lub-dub, two pulses with short gap
 void lubDubEffect() {
-  // First pulse (LUB)
+  // lub
   triggerBeat();
   while (beatTriggered) {
     renderFlow();
@@ -69,7 +65,7 @@ void lubDubEffect() {
 
   delay(120);
 
-  // Second pulse (DUB)
+  // dub
   triggerBeat();
   while (beatTriggered) {
     renderFlow();
@@ -77,10 +73,9 @@ void lubDubEffect() {
   }
 }
 
-// ---------------- LOOP ----------------
 void loop() {
 
-  // ---- SERIAL INPUT ----
+  // serial input with baud rate 115200
   if (Serial.available()) {
     String input = Serial.readStringUntil('\n');
 
@@ -89,13 +84,13 @@ void loop() {
     }
   }
 
-  // ---- AUTO HEARTBEAT (fallback) ----
+  // fallback
   if (millis() - lastBeatTime > beatInterval) {
     lubDubEffect();
     lastBeatTime = millis();
   }
 
-  // ---- NORMAL FLOW ----
+  // normal flow
   if (beatTriggered) {
     renderFlow();
     delay(15);
