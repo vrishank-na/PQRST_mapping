@@ -1,5 +1,4 @@
 import scipy.signal as signal
-
 from test import FS
 
 def filters():
@@ -19,3 +18,10 @@ def filters():
         return ecg
 
     return bandpass_ecg
+
+def subtract_noise(bandpass_ecg, baseline_ecg):
+    noise = []
+    for i in range(len(bandpass_ecg)):
+        bandpass_ecg[i] -= baseline_ecg[i]
+        noise.append(bandpass_ecg[i])
+    return noise
