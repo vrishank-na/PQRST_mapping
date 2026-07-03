@@ -1,8 +1,6 @@
 #include <FastLED.h>
-#define NUM_LEDS 144
-#define DATA_PIN 6
-#define RELAY_PIN 7
-
+#define NUM_LEDS 28
+#define DATA_PIN 3
 CRGB leds[NUM_LEDS];
 
 // Flow parameters
@@ -16,8 +14,8 @@ int beatInterval = 800; // ms between beats
 void setup() {
   Serial.begin(115200);
 
-  pinMode(RELAY_PIN, OUTPUT);
-  digitalWrite(RELAY_PIN, HIGH);
+  pinMode(DATA_PIN, OUTPUT);
+  digitalWrite(DATA_PIN, HIGH);
 
   delay(1000);
 
