@@ -8,9 +8,6 @@ int wavePos = 0;
 int waveWidth = 12;
 bool beatTriggered = false;
 
-unsigned long lastBeatTime = 0;
-int beatInterval = 800; // ms between beats
-
 void setup() {
   Serial.begin(115200);
 
@@ -24,6 +21,10 @@ void setup() {
   FastLED.clear();
   FastLED.show();
 }
+// input to circ representation
+// [P:in, P:out; Q:in, Q:out; R:in, R:out; S:in, S:out; T:in, T:out]
+// array within an array
+//  
 
 // trigger
 void triggerBeat() {
