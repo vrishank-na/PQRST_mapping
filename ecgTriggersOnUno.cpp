@@ -24,7 +24,8 @@ void setup() {
 // input to circ representation
 // [P:in, P:out; Q:in, Q:out; R:in, R:out; S:in, S:out; T:in, T:out]
 // array within an array
-//  
+//  essentially a mutable 5x2 matrix
+// {Pin, Pout},{Qin, Qout},{Rin, Rout},{Sin, Sout},{Tin, Tout}
 
 // trigger
 void triggerBeat() {
