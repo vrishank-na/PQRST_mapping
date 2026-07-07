@@ -82,13 +82,13 @@ void executeEvents(int n) {
 
     switch (events[i].type) {
 
-      case 'P':   // Atrial depolarization
+      case 'P':   // P-wave: right and left atria.
         for (int p : atria) digitalWrite(p, HIGH);
         delay(60);
         for (int p : atria) digitalWrite(p, LOW);
         break;
 
-      case 'Q':   // AV valve closure
+      case 'Q':   // Q-wave: tricuspid and mitral valves.
         digitalWrite(TRICUSPID, HIGH);
         digitalWrite(MITRAL, HIGH);
         delay(30);
@@ -96,11 +96,11 @@ void executeEvents(int n) {
         digitalWrite(MITRAL, LOW);
         break;
 
-      case 'R':   // Ventricular depolarization
+      case 'R':   // R-wave: right and left ventricles.
         for (int v : ventricles) digitalWrite(v, HIGH);
         break;
 
-      case 'S':   // Semilunar valve opening + ventricular systole
+      case 'S':   // S-wave: pulmonary and aortic valves.
         digitalWrite(PULMONARY, HIGH);
         digitalWrite(AORTIC, HIGH);
         delay(50);
@@ -110,7 +110,7 @@ void executeEvents(int n) {
         for (int v : ventricles) digitalWrite(v, LOW);
         break;
 
-      case 'T':   // Ventricular repolarization (optional glow)
+      case 'T':   // T-wave: ventricular repolarization (optional glow).
         // intentionally subtle / no action
         break;
     }

@@ -1,4 +1,7 @@
-import model2_placeholder
+try:
+    from . import model2_placeholder
+except ImportError:  # pragma: no cover - supports running as a script
+    import model2_placeholder
 
 
 def process(model1_results, fs=None):

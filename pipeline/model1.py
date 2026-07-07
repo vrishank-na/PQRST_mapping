@@ -1,5 +1,9 @@
 import pickle
-import model1_placeholder
+
+try:
+    from . import model1_placeholder
+except ImportError:  # pragma: no cover - supports running as a script
+    import model1_placeholder
 
 def extract_model(model_path):
     with open(model_path, 'rb') as f:

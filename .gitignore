@@ -19,3 +19,5 @@ Thumbs.db
 
 # Data (optional if you don't want to upload ECG files)
 data/*.csv
+
+.pytest_cache/

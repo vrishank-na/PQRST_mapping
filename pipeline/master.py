@@ -1,11 +1,18 @@
 import argparse
 import os
 
-import csvhandler as csv
-import dsp
-import model1
-import model2
-import serialcomms as comms
+try:
+    from . import csvhandler as csv
+    from . import dsp
+    from . import model1
+    from . import model2
+    from . import serialcomms as comms
+except ImportError:  # pragma: no cover - supports running as a script
+    import csvhandler as csv
+    import dsp
+    import model1
+    import model2
+    import serialcomms as comms
 
 
 DEFAULT_ECG_CSV = os.path.join(os.path.dirname(os.path.dirname(__file__)), "ecg.csv")

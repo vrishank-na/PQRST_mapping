@@ -19,25 +19,38 @@ def process(model1_output, fs: float | None = None):
     if ecg.size == 0:
         raise ValueError("model2 placeholder received no ECG samples")
 
-    r_index = _detect_r_peak(ecg)
-    matrix = _pqrst_windows(r_index, len(ecg), fs)
-
+    r_indices = _detect_r_peaks(ecg, fs)
     return [{
         "type": "ecg_pqrst",
         "unit": "ms",
         "labels": list(PQRST_LABELS),
-        "matrix": matrix,
+        "matrix": _pqrst_windows(r_index, len(ecg), fs),
         "source": "model2_placeholder",
-    }]
+    } for r_index in r_indices]
 
 
-def _detect_r_peak(ecg: np.ndarray):
+def _detect_r_peaks(ecg: np.ndarray, fs: float):
     centered = ecg - np.median(ecg)
-    if centered.size >= 20:
-        start = int(centered.size * 0.20)
-        end = max(start + 1, int(centered.size * 0.90))
-        return start + int(np.argmax(centered[start:end]))
-    return int(np.argmax(centered))
+    if centered.size < 5:
+        return [int(np.argmax(centered))]
+
+    threshold = max(float(np.std(centered)), float(np.max(np.abs(centered))) * 0.15, 1e-6)
+    peaks = []
+    for index in range(1, centered.size - 1):
+        if centered[index] > centered[index - 1] and centered[index] >= centered[index + 1]:
+            if centered[index] > threshold:
+                peaks.append(index)
+
+    if not peaks:
+        return [int(np.argmax(centered))]
+
+    min_distance = max(5, int(0.25 * fs))
+    filtered_peaks = []
+    for peak in peaks:
+        if not filtered_peaks or peak - filtered_peaks[-1] >= min_distance:
+            filtered_peaks.append(peak)
+
+    return filtered_peaks[:10]
 
 
 def _pqrst_windows(r_index: int, sample_count: int, fs: float):

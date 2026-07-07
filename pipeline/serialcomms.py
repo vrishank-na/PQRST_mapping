@@ -16,6 +16,30 @@ TIMEOUT_SECONDS = 1
 PQRST_ORDER = ("P", "Q", "R", "S", "T")
 
 
+def _select_serial_port(preferred_port=None, available_ports=None):
+    requested_port = preferred_port or USB_PORT
+    if not requested_port:
+        return requested_port
+
+    if available_ports is None:
+        try:
+            from serial.tools import list_ports
+
+            available_ports = [port.device for port in list_ports.comports()]
+        except Exception:
+            return requested_port
+
+    if requested_port in available_ports:
+        return requested_port
+
+    preferred_keywords = ("ttyUSB", "ttyACM", "usbmodem", "cu.usbmodem", "tty.usbmodem")
+    for candidate in available_ports:
+        if any(keyword in candidate for keyword in preferred_keywords):
+            return candidate
+
+    return requested_port
+
+
 def connect_usb_interface(
     port=USB_PORT,
     baud_rate=BAUD_RATE,
@@ -26,8 +50,10 @@ def connect_usb_interface(
     if serial is None:
         raise ConnectionError("pyserial is required for USB communication: pip install pyserial")
 
+    selected_port = _select_serial_port(port)
+
     try:
-        connection = serial.Serial(port, baudrate=baud_rate, timeout=timeout)
+        connection = serial.Serial(selected_port, baudrate=baud_rate, timeout=timeout)
         time.sleep(settle_seconds)
         return connection
     except serial.SerialException as exc:
@@ -184,11 +210,9 @@ def _legacy_packet_from_matrix(matrix):
 
 
 def _json_packet(matrix):
+    compact_matrix = [[int(start), int(end)] for start, end in matrix]
     packet = {
-        "type": "ecg_pqrst",
-        "unit": "ms",
-        "labels": list(PQRST_ORDER),
-        "matrix": matrix,
+        "m": compact_matrix,
     }
     return json.dumps(packet, separators=(",", ":")) + "\n"
 
@@ -230,6 +254,24 @@ def send_datastream(data, timestamp=None, connection=None, close_after_send=Fals
     finally:
         if close_after_send or connection is None:
             serial_connection.close()
+
+
+def stream_packets(data_packets, port=USB_PORT, baud_rate=BAUD_RATE, inter_packet_delay=0.05, packet_format="json"):
+    with connect_usb_interface(port=port, baud_rate=baud_rate) as connection:
+        sent_packets = []
+        for index, packet_data in enumerate(data_packets):
+            sent_packets.append(
+                send_datastream(
+                    packet_data,
+                    connection=connection,
+                    close_after_send=False,
+                    packet_format=packet_format,
+                )
+            )
+            if index < len(data_packets) - 1 and inter_packet_delay > 0:
+                time.sleep(inter_packet_delay)
+
+    return sent_packets
 
 
 def send_results(results, port=USB_PORT, baud_rate=BAUD_RATE, inter_packet_delay=0.05, packet_format="json"):
