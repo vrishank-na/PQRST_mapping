@@ -1,4 +1,5 @@
 import csv
+import json
 import os
 import time
 from collections.abc import Iterable, Mapping
@@ -40,6 +41,24 @@ def _time_to_ms(value):
 
     # model code commonly emits seconds, while firmware expects milliseconds.
     return int(round(numeric * 1000 if numeric <= 10 else numeric))
+
+
+def _normalize_window(window, unit="ms"):
+    if isinstance(window, Mapping):
+        start = window.get("start_ms", window.get("start", window.get("in", window.get("on"))))
+        end = window.get("end_ms", window.get("end", window.get("out", window.get("off"))))
+    else:
+        start, end = window
+
+    if unit in {"s", "sec", "second", "seconds"}:
+        start_ms = _time_to_ms(start)
+        end_ms = _time_to_ms(end)
+    else:
+        start_ms = int(round(float(start)))
+        end_ms = int(round(float(end)))
+    if end_ms <= start_ms:
+        raise ValueError(f"PQRST window end must be after start: {window}")
+    return [start_ms, end_ms]
 
 
 def _normalize_event_name(name):
@@ -86,14 +105,35 @@ def _events_from_csv(csv_path):
     }
 
 
-def format_pqrst_packet(data):
-    """Convert model output into firmware format: P:0,Q:80,R:120,S:160,T:320."""
+def format_pqrst_packet(data, packet_format="json"):
+    """Convert model output into a serial packet.
+
+    JSON firmware format:
+    {"type":"ecg_pqrst","unit":"ms","labels":["P","Q","R","S","T"],"matrix":[[Pin,Pout],...]}
+
+    Legacy format remains available with packet_format="legacy":
+    P:0,Q:80,R:120,S:160,T:320
+    """
     if isinstance(data, str):
         if os.path.exists(data):
             data = _events_from_csv(data)
         else:
             line = data.strip()
             return line if line.endswith("\n") else f"{line}\n"
+
+    if isinstance(data, Mapping) and "matrix" in data:
+        labels = tuple(data.get("labels", PQRST_ORDER))
+        if tuple(labels) != PQRST_ORDER:
+            raise ValueError(f"PQRST matrix labels must be {PQRST_ORDER}")
+        unit = str(data.get("unit", "ms")).lower()
+        matrix = [_normalize_window(window, unit=unit) for window in data["matrix"]]
+        if len(matrix) != len(PQRST_ORDER):
+            raise ValueError("PQRST matrix must contain five [in,out] windows")
+        first_time = min(start for start, _ in matrix)
+        normalized_matrix = [[start - first_time, end - first_time] for start, end in matrix]
+        if packet_format == "legacy":
+            return _legacy_packet_from_matrix(normalized_matrix)
+        return _json_packet(normalized_matrix)
 
     if isinstance(data, Mapping):
         events = {
@@ -121,17 +161,63 @@ def format_pqrst_packet(data):
         raise ValueError(f"Missing PQRST event times: {', '.join(missing)}")
 
     first_time = min(events.values())
-    packet = ",".join(
-        f"{event}:{events[event] - first_time}"
-        for event in PQRST_ORDER
-    )
+    matrix = _event_times_to_windows(events, first_time)
+    if packet_format == "legacy":
+        return _legacy_packet_from_matrix(matrix)
+    return _json_packet(matrix)
+
+
+def _event_times_to_windows(events, first_time):
+    starts = [events[event] - first_time for event in PQRST_ORDER]
+    defaults = [80, 40, 55, 55, 200]
+    matrix = []
+    for idx, start in enumerate(starts):
+        next_start = starts[idx + 1] if idx + 1 < len(starts) else start + defaults[idx]
+        end = max(start + 1, min(start + defaults[idx], next_start))
+        matrix.append([start, end])
+    return matrix
+
+
+def _legacy_packet_from_matrix(matrix):
+    packet = ",".join(f"{event}:{matrix[idx][0]}" for idx, event in enumerate(PQRST_ORDER))
     return f"{packet}\n"
 
 
-def send_datastream(data, timestamp=None, connection=None, close_after_send=False):
+def _json_packet(matrix):
+    packet = {
+        "type": "ecg_pqrst",
+        "unit": "ms",
+        "labels": list(PQRST_ORDER),
+        "matrix": matrix,
+    }
+    return json.dumps(packet, separators=(",", ":")) + "\n"
+
+
+def format_packets(results, packet_format="json"):
+    if isinstance(results, (str, Mapping)):
+        beats = [results]
+    else:
+        beats = list(results)
+        event_keys = {"event", "phase", "label", "wave"}
+        looks_like_event_dicts = all(
+            isinstance(item, Mapping) and event_keys.intersection(item)
+            for item in beats
+        )
+        looks_like_event_tuples = all(
+            isinstance(item, tuple) and len(item) == 2
+            for item in beats
+        )
+
+        if beats and (looks_like_event_dicts or looks_like_event_tuples):
+            beats = [beats]
+
+    return [format_pqrst_packet(beat, packet_format=packet_format) for beat in beats]
+
+
+def send_datastream(data, timestamp=None, connection=None, close_after_send=False, packet_format="json"):
     # single pqrst packet
     serial_connection = connection or connect_usb_interface()
-    packet = format_pqrst_packet(data)
+    packet = format_pqrst_packet(data, packet_format=packet_format)
 
     try:
         serial_connection.write(packet.encode("ascii"))
@@ -146,7 +232,7 @@ def send_datastream(data, timestamp=None, connection=None, close_after_send=Fals
             serial_connection.close()
 
 
-def send_results(results, port=USB_PORT, baud_rate=BAUD_RATE, inter_packet_delay=0.05):
+def send_results(results, port=USB_PORT, baud_rate=BAUD_RATE, inter_packet_delay=0.05, packet_format="json"):
     # model2 output, dict or list of dicts, or CSV path, or single packet string
     if isinstance(results, (str, Mapping)):
         beats = [results]
@@ -169,7 +255,12 @@ def send_results(results, port=USB_PORT, baud_rate=BAUD_RATE, inter_packet_delay
         sent_packets = []
         for beat in beats:
             sent_packets.append(
-                send_datastream(beat, connection=connection, close_after_send=False)
+                send_datastream(
+                    beat,
+                    connection=connection,
+                    close_after_send=False,
+                    packet_format=packet_format,
+                )
             )
             time.sleep(inter_packet_delay)
 

@@ -1,6 +1,5 @@
 import pickle
-import numpy as np
-import pandas as pd
+import model1_placeholder
 
 def extract_model(model_path):
     with open(model_path, 'rb') as f:
@@ -17,3 +16,6 @@ def compute():
     return 1
 
 
+def process(ecg_data, fs=100.0):
+    """Temporary entrypoint until the trained model 1 artefact remover exists."""
+    return model1_placeholder.process(ecg_data, fs=fs)

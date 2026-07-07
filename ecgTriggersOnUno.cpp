@@ -15,7 +15,8 @@ const unsigned long frameDelayMs = 15;
 
 struct Event {
   char type;
-  unsigned int timeMs;
+  unsigned int startMs;
+  unsigned int endMs;
 };
 
 Event events[5];
@@ -83,12 +84,51 @@ int parseEvents(String line) {
     char type = line.charAt(0);
     if (eventIndex(type) >= 0) {
       events[count].type = type;
-      events[count].timeMs = (unsigned int)line.substring(colon + 1, comma).toInt();
+      events[count].startMs = (unsigned int)line.substring(colon + 1, comma).toInt();
+      events[count].endMs = events[count].startMs + 40;
       count++;
     }
 
     line = (comma < line.length()) ? line.substring(comma + 1) : "";
     line.trim();
+  }
+
+  return count;
+}
+
+// JSON packet format:
+// {"type":"ecg_pqrst","unit":"ms","labels":["P","Q","R","S","T"],"matrix":[[Pin,Pout],[Qin,Qout],[Rin,Rout],[Sin,Sout],[Tin,Tout]]}
+int parseJsonMatrix(String line) {
+  int matrixStart = line.indexOf("[[");
+  int count = 0;
+
+  if (matrixStart < 0) {
+    return 0;
+  }
+
+  int cursor = matrixStart + 2;
+  while (count < 5 && cursor < line.length()) {
+    int comma = line.indexOf(',', cursor);
+    int close = line.indexOf(']', comma + 1);
+
+    if (comma < 0 || close < 0) {
+      break;
+    }
+
+    events[count].type = eventTypes[count];
+    events[count].startMs = (unsigned int)line.substring(cursor, comma).toInt();
+    events[count].endMs = (unsigned int)line.substring(comma + 1, close).toInt();
+    if (events[count].endMs <= events[count].startMs) {
+      events[count].endMs = events[count].startMs + 1;
+    }
+
+    count++;
+    cursor = close + 1;
+    int nextOpen = line.indexOf('[', cursor);
+    if (nextOpen < 0) {
+      break;
+    }
+    cursor = nextOpen + 1;
   }
 
   return count;
@@ -115,7 +155,7 @@ void renderFlow() {
   }
 }
 
-void flashEvent(char type) {
+void paintEvent(char type) {
   int idx = eventIndex(type);
   if (idx < 0) {
     return;
@@ -139,11 +179,34 @@ void flashEvent(char type) {
   FastLED.show();
 }
 
+void clearEvent(char type) {
+  int idx = eventIndex(type);
+  if (idx < 0) {
+    return;
+  }
+
+  uint8_t center = eventLed[idx];
+
+  for (int radius = 0; radius <= 2; radius++) {
+    int left = center - radius;
+    int right = center + radius;
+
+    if (left >= 0) {
+      leds[left] = CRGB::Black;
+    }
+    if (right < NUM_LEDS) {
+      leds[right] = CRGB::Black;
+    }
+  }
+
+  FastLED.show();
+}
+
 void executeEvents(int count) {
   unsigned long start = millis();
 
   for (int i = 0; i < count; i++) {
-    while (millis() - start < events[i].timeMs) {
+    while (millis() - start < events[i].startMs) {
       if (beatTriggered) {
         renderFlow();
       } else {
@@ -157,7 +220,12 @@ void executeEvents(int count) {
       triggerBeat();
     }
 
-    flashEvent(events[i].type);
+    while (millis() - start < events[i].endMs) {
+      paintEvent(events[i].type);
+      delay(frameDelayMs);
+    }
+
+    clearEvent(events[i].type);
   }
 
   lastBeatTime = millis();
@@ -192,7 +260,7 @@ void loop() {
     if (input.equalsIgnoreCase("beat")) {
       triggerBeat();
     } else {
-      int count = parseEvents(input);
+      int count = input.startsWith("{") ? parseJsonMatrix(input) : parseEvents(input);
       if (count > 0) {
         executeEvents(count);
       }

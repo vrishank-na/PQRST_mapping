@@ -1,40 +1,65 @@
-# placeholder logic for model2
-# define pan tompkins algorithm for PQRST detection
+"""Placeholder for model 2: PQRST recognition and timing windows."""
 
-import scipy.signal as signal
+from __future__ import annotations
+
 import numpy as np
-import pandas as pd
-import csvhandler as csv
 
-filename = "data/intermediateEcg.csv"
+PQRST_LABELS = ("P", "Q", "R", "S", "T")
 
-def pan_tompkins(ecg_signal, fs):
-    # Bandpass filter
-    lowcut = 0.5
-    highcut = 40.0
-    nyq = 0.5 * fs
-    low = lowcut / nyq
-    high = highcut / nyq
-    b, a = signal.butter(1, [low, high], btype='band')
-    filtered_ecg = signal.filtfilt(b, a, ecg_signal)
 
-    # Derivative filter
-    derivative_filter = np.array([1, 2, 0, -2, -1]) / 8.0
-    derivative_ecg = np.convolve(filtered_ecg, derivative_filter, mode='same')
+def process(model1_output, fs: float | None = None):
+    if isinstance(model1_output, dict):
+        samples = model1_output.get("samples", [])
+        fs = float(model1_output.get("fs", fs or 100.0))
+    else:
+        samples = model1_output
+        fs = float(fs or 100.0)
 
-    # Squaring function
-    squared_ecg = derivative_ecg ** 2
+    ecg = np.asarray(samples, dtype=float)
+    if ecg.size == 0:
+        raise ValueError("model2 placeholder received no ECG samples")
 
-    # Moving window integration
-    window_size = int(0.150 * fs)  # 150 ms window
-    integrated_ecg = np.convolve(squared_ecg, np.ones(window_size) / window_size, mode='same')
+    r_index = _detect_r_peak(ecg)
+    matrix = _pqrst_windows(r_index, len(ecg), fs)
 
-    # Thresholding and peak detection (simplified)
-    threshold = np.mean(integrated_ecg) * 1.5
-    peaks, _ = signal.find_peaks(integrated_ecg, height=threshold)
+    return [{
+        "type": "ecg_pqrst",
+        "unit": "ms",
+        "labels": list(PQRST_LABELS),
+        "matrix": matrix,
+        "source": "model2_placeholder",
+    }]
 
-    return peaks
 
-# return peaks only in format of PQRST timein timeout, i.e
-# {P_start_time, P_end_time}{Q_Start, Q_end}{R_start, R_end}{S_start, R_end}{S_start, S_end}{T_start, T_end}
+def _detect_r_peak(ecg: np.ndarray):
+    centered = ecg - np.median(ecg)
+    if centered.size >= 20:
+        start = int(centered.size * 0.20)
+        end = max(start + 1, int(centered.size * 0.90))
+        return start + int(np.argmax(centered[start:end]))
+    return int(np.argmax(centered))
 
+
+def _pqrst_windows(r_index: int, sample_count: int, fs: float):
+    offsets_ms = {
+        "P": (-220, -140),
+        "Q": (-60, -20),
+        "R": (-20, 35),
+        "S": (35, 90),
+        "T": (160, 360),
+    }
+    r_ms = int(round(r_index * 1000.0 / fs))
+    duration_ms = int(round(max(sample_count - 1, 0) * 1000.0 / fs))
+
+    absolute = []
+    for label in PQRST_LABELS:
+        start = _clamp(r_ms + offsets_ms[label][0], 0, duration_ms)
+        end = _clamp(r_ms + offsets_ms[label][1], start + 1, duration_ms + 1)
+        absolute.append([start, end])
+
+    first_start = absolute[0][0]
+    return [[start - first_start, end - first_start] for start, end in absolute]
+
+
+def _clamp(value: int, low: int, high: int):
+    return max(low, min(value, high))

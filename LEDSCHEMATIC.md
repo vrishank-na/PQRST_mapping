@@ -1,4 +1,4 @@
-3 + 3 + 4 + 3 - LED count
+
 | Serial Order in Connection| LED count | Segment | Colour of LED |
 |---------------------------|-----------|---------|---------------|
 | 1 | 3 | Right Atrium | Blue |
@@ -10,4 +10,8 @@
 | 7 | 5 | Left Ventricle | Red |
 | 8 | 3 | Pulmonary Valve | Green |
 
-4 + 3 + 5 + 3
+3 + 3 + 4 + 3 - LED count for right side of heart
+4 + 3 + 5 + 3 - LED count for left side of the heart
+
+Is essentially connected in the same serial order that's mentioned in the table.
+
