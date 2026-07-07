@@ -15,6 +15,35 @@ def create_csv(filename="intermediate_results.csv", header=("timestamp", "ecg_va
         writer.writerow(header)
 
 
+def read_ecg_rows(filename, start: int = 0, count: int | None = None):
+    """Read multiple rows from a headerless, per-beat-segmented ECG CSV.
+
+    ecg.csv (and datasets shaped like it) store one pre-segmented heartbeat
+    per row, plus a trailing class-label column. `read_ecg_csv` only ever
+    returns a single row (row_index=0 by default), which is why the
+    pipeline was stuck replaying the same ~1.4s heartbeat forever - there
+    was no code path that ever looked at rows 1..4997.
+
+    Returns a list of sample lists, one per selected row, with the trailing
+    label column stripped from each.
+    """
+    with open(filename, "r", newline="") as csv_file:
+        reader = csv.reader(csv_file)
+        rows = [row for row in reader if row]
+
+    if not rows:
+        raise ValueError(f"No ECG rows found in {filename}")
+
+    start = max(0, min(start, len(rows) - 1))
+    end = len(rows) if count is None else min(len(rows), start + count)
+
+    selected_rows = rows[start:end]
+    return [
+        _strip_label_value([float(value) for value in row if value.strip()])
+        for row in selected_rows
+    ]
+
+
 def read_ecg_csv(filename, row_index: int = 0):
     """Read ECG samples from named columns or from a window-style numeric CSV row.
 

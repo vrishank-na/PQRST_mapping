@@ -25,6 +25,12 @@ def process(model1_output, fs: float | None = None):
         "unit": "ms",
         "labels": list(PQRST_LABELS),
         "matrix": _pqrst_windows(r_index, len(ecg), fs),
+        # Absolute R-peak time within the recording. The matrix above is
+        # normalized to start at 0 for *this beat only*, so this is the one
+        # place real inter-beat spacing survives — downstream senders need
+        # it to pace playback at the actual heart rate instead of a fixed
+        # delay.
+        "r_time_ms": int(round(r_index * 1000.0 / fs)),
         "source": "model2_placeholder",
     } for r_index in r_indices]
 

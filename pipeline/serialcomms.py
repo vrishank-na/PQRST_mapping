@@ -274,7 +274,28 @@ def stream_packets(data_packets, port=USB_PORT, baud_rate=BAUD_RATE, inter_packe
     return sent_packets
 
 
-def send_results(results, port=USB_PORT, baud_rate=BAUD_RATE, inter_packet_delay=0.05, packet_format="json"):
+def send_results(
+    results,
+    port=USB_PORT,
+    baud_rate=BAUD_RATE,
+    inter_packet_delay=0.05,
+    packet_format="json",
+    pace_by_real_time=True,
+    max_gap_seconds=3.0,
+):
+    """Send model2 output to the firmware, one packet per beat.
+
+    By default (pace_by_real_time=True) the wait *between* beats is derived
+    from each beat's real "r_time_ms" (its absolute R-peak time within the
+    recording), not a fixed inter_packet_delay. The firmware's playback of a
+    single PQRST cycle takes ~500-600ms; a fixed 50ms gap dumps every
+    detected beat almost instantly, overflowing the firmware's small
+    playback queue (MAX_PENDING_PACKETS=4) and silently dropping the rest -
+    which is why only the first couple of beats were ever visible.
+
+    max_gap_seconds caps how long we'll wait for a single beat-to-beat gap,
+    in case of bad/missing timestamps or a big gap in the recording.
+    """
     # model2 output, dict or list of dicts, or CSV path, or single packet string
     if isinstance(results, (str, Mapping)):
         beats = [results]
@@ -295,7 +316,31 @@ def send_results(results, port=USB_PORT, baud_rate=BAUD_RATE, inter_packet_delay
 
     with connect_usb_interface(port=port, baud_rate=baud_rate) as connection:
         sent_packets = []
+        previous_send_time = None
+        previous_r_ms = None
+
         for beat in beats:
+            r_ms = beat.get("r_time_ms") if isinstance(beat, Mapping) else None
+            have_real_gap = (
+                pace_by_real_time
+                and previous_send_time is not None
+                and previous_r_ms is not None
+                and r_ms is not None
+            )
+
+            if have_real_gap:
+                target_gap = max(0.0, (r_ms - previous_r_ms) / 1000.0)
+                target_gap = min(target_gap, max_gap_seconds)
+                already_elapsed = time.time() - previous_send_time
+                wait_time = target_gap - already_elapsed
+                if wait_time > 0:
+                    time.sleep(wait_time)
+            elif previous_send_time is not None:
+                # Fallback for data without real timestamps (legacy single
+                # dict/tuple beats, CSV rows, etc.) - old fixed-delay behavior.
+                time.sleep(inter_packet_delay)
+
+            send_time = time.time()
             sent_packets.append(
                 send_datastream(
                     beat,
@@ -304,6 +349,8 @@ def send_results(results, port=USB_PORT, baud_rate=BAUD_RATE, inter_packet_delay
                     packet_format=packet_format,
                 )
             )
-            time.sleep(inter_packet_delay)
+            previous_send_time = send_time
+            if r_ms is not None:
+                previous_r_ms = r_ms
 
     return sent_packets
