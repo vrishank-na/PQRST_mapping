@@ -21,3 +21,5 @@ Thumbs.db
 data/*.csv
 
 .pytest_cache/
+*.pkl
+*.pth
