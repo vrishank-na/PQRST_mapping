@@ -1,0 +1,131 @@
+I actually think this is the **right** experiment to run next.
+
+The reason is that we've changed **two variables** so far:
+
+1. **Problem formulation** (R-centred beats) ✅
+2. **Optimization** (reset to the vanilla baseline) ✅
+
+So we don't yet know whether the optimization improvements that helped (or partially helped) the original formulation transfer to the new one.
+
+A one-hour training run is a very reasonable investment.
+
+## Here's the order I'd run them
+
+### Experiment R1 (already done)
+
+* R-centred windows
+* Vanilla CrossEntropy
+* Baseline architecture
+
+**Result:** Strong improvement on LUDB.
+
+---
+
+### Experiment R2
+
+Run **Focal Loss** exactly as before.
+
+Don't change:
+
+* Learning rate
+* Number of epochs
+* Batch size
+* Window size
+* Architecture
+
+The **only** difference should be the loss function.
+
+That way, any change can confidently be attributed to Focal Loss.
+
+---
+
+### Experiment R3 (optional, if time permits)
+
+If your original weighted CrossEntropy wasn't catastrophic, try it here as well.
+
+My intuition is that it may behave **differently** now.
+
+Why?
+
+Previously, the model had to learn:
+
+```
+Background
+P
+QRS
+T
+```
+
+Now it only learns:
+
+```
+Background
+P
+T
+```
+
+The class imbalance is different.
+
+The network no longer wastes capacity on the QRS class, so the optimization landscape has changed.
+
+I wouldn't be surprised if Focal Loss behaves much more sensibly now than it did in the four-class problem.
+
+---
+
+## One thing I would **not** repeat
+
+I wouldn't bother with:
+
+* 30 extra epochs
+* LR scheduler
+
+Those experiments have already been answered.
+
+They didn't help the original model, and there's no strong reason to expect them to suddenly become beneficial here.
+
+---
+
+## My prediction (before seeing the results)
+
+I actually think Focal Loss has a **better chance** of helping now than it did previously.
+
+Here's why.
+
+In the original model:
+
+* QRS was already extremely easy.
+* Focal Loss kept emphasizing the difficult P/T regions **and** still had to balance the dominant background and QRS classes.
+
+Now:
+
+* QRS has been removed.
+* The remaining difficult classes are exactly the ones we care about.
+* Hard examples are mostly ambiguous P/T boundaries.
+
+That is much closer to the scenario Focal Loss was designed for.
+
+I'm **not** predicting a dramatic jump—don't expect P F1 to suddenly become 0.90 on LUDB—but a **1–3 percentage point** improvement in macro F1 would not surprise me.
+
+---
+
+## The experiment matrix is becoming quite elegant
+
+| ID     | Model         | Loss             | LUDB Macro F1 |
+| ------ | ------------- | ---------------- | ------------- |
+| M1     | Original      | CrossEntropy     | 0.7756        |
+| M2     | Original      | Focal            | ...           |
+| **R1** | **R-centred** | **CrossEntropy** | **0.8148**    |
+| **R2** | **R-centred** | **Focal**        | ?             |
+
+This is a clean ablation study. It lets you separate:
+
+* **Effect of representation** (Original → R-centred)
+* **Effect of loss function** (CrossEntropy → Focal)
+
+Reviewers appreciate this kind of experimental design because each experiment isolates one factor.
+
+## One more suggestion
+
+Since each run only costs about an hour, save **every checkpoint and every evaluation**. Even if Focal Loss ends up slightly worse, that negative result is useful. It strengthens your conclusion that **the primary gain came from the R-centred physiological representation**, not from changing the optimization objective.
+
+Ironically, the "failed" optimization experiments may end up making your paper stronger, because they demonstrate that the improvement wasn't due to hyperparameter luck—it came from a principled reformulation of the task.

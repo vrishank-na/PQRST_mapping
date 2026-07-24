@@ -23,3 +23,6 @@ data/*.csv
 .pytest_cache/
 *.pkl
 *.pth
+
+physionet.org/
+*.npz
