@@ -1,0 +1,555 @@
+Me read notebook.
+
+Me think big thing: architecture not bad. Dataset better. But notebook still have few weak places. Me list by biggest impact.
+
+## 1. Early stopping maybe stop too early ⭐⭐⭐⭐⭐
+
+Me see:
+
+* Epochs = 50
+* Patience = 8
+
+Now training many patients.
+
+Before:
+
+* one record
+* converge fast
+
+Now:
+
+* many morphologies
+* harder problem
+* validation noisy
+
+So patience 8 maybe stop before network learn universal ECG.
+
+Me try
+
+```
+Epochs = 150
+Patience = 20
+```
+
+or even
+
+```
+Patience = 25
+```
+
+### Evaluate
+
+Plot
+
+```
+Train Loss
+Validation Loss
+```
+
+If validation still going down when stop happen → early stopping too aggressive.
+
+Keep if helps external QTDB.
+
+---
+
+# 2. Increase record coverage ⭐⭐⭐⭐⭐
+
+Current
+
+```
+100
+101
+...
+124
+```
+
+Good.
+
+Still only about 23 MIT-BIH patients.
+
+MIT-BIH has 48 records.
+
+Some excluded because paced beats etc.
+
+Still many normal morphologies missing.
+
+Add more suitable records gradually.
+
+Reason
+
+Model no learn Record 100.
+
+Model learn
+
+"What artifact looks like."
+
+Not
+
+"What ECG looks like."
+
+Evaluation
+
+Same QTDB experiment.
+
+If QTDB improve but MIT loss little worse
+
+→ good sign.
+
+---
+
+# 3. Noise amplitude distribution ⭐⭐⭐⭐⭐
+
+This maybe biggest hidden issue.
+
+Question:
+
+Do all noisy samples use similar SNR?
+
+If yes
+
+bad.
+
+Real ECG have
+
+```
+Almost clean
+
+Slight BW
+
+Heavy BW
+
+Strong EM
+
+Crazy muscle
+
+Mixed
+```
+
+Need random.
+
+Example
+
+```
+SNR
+
+-6
+-3
+0
+3
+6
+9
+12
+15
+20 dB
+```
+
+sample uniformly.
+
+Model then learn
+
+"When remove little."
+
+"When remove lot."
+
+Not always same strength.
+
+Evaluation
+
+External QTDB
+
+Different noise levels
+
+Plot
+
+```
+Input SNR
+↓
+
+Output SNR
+```
+
+Should improve across whole range.
+
+---
+
+# 4. Increase clean fraction ⭐⭐⭐⭐☆
+
+Current
+
+```
+30%
+clean
+70%
+noisy
+```
+
+Me actually test
+
+```
+40%
+clean
+60%
+noisy
+```
+
+or
+
+```
+50%
+clean
+50%
+noisy
+```
+
+Reason
+
+Current failure before:
+
+Model always subtract something.
+
+Need stronger idea
+
+```
+artifact = 0
+```
+
+Evaluation
+
+Run
+
+```
+QTDB clean
+
+↓
+
+ML1
+```
+
+Measure
+
+```
+RMSE
+
+Correlation
+
+Predicted artifact RMS
+```
+
+Artifact RMS should become tiny.
+
+---
+
+# 5. Noise mixing ⭐⭐⭐⭐☆
+
+Need ensure every epoch
+
+```
+BW
+EM
+MA
+
+BW+EM
+
+BW+MA
+
+EM+MA
+
+BW+EM+MA
+```
+
+with random weights.
+
+Not equal weights.
+
+Example
+
+```
+0.2 BW
+0.9 EM
+0.4 MA
+```
+
+Reason
+
+Real artifact never balanced.
+
+---
+
+# 6. Loss function ⭐⭐⭐☆☆
+
+Notebook use
+
+```
+HuberLoss(delta=0.5)
+```
+
+Me actually like this.
+
+Would NOT replace immediately.
+
+But add small morphology preservation loss.
+
+Instead of only
+
+```
+artifact prediction
+```
+
+also compute
+
+```
+Recovered ECG
+
+=
+
+Input - Prediction
+```
+
+Then
+
+```
+Loss
+
+=
+
+Huber(predicted_artifact)
+
++
+
+0.2*MSE(recovered_clean)
+```
+
+Reason
+
+Even though algebraically MSE same, Huber not exactly same.
+
+Small clean reconstruction term may encourage morphology preservation.
+
+Need experiment.
+
+If no gain
+
+remove.
+
+---
+
+# 7. Window overlap ⭐⭐⭐☆☆
+
+Current
+
+```
+512
+stride 256
+```
+
+Good.
+
+Maybe during training
+
+randomize start completely.
+
+During inference
+
+keep overlap.
+
+No major issue.
+
+---
+
+# 8. Better normalization ⭐⭐⭐⭐☆
+
+Question:
+
+Does notebook normalize each ECG independently?
+
+If yes
+
+good.
+
+If global scale
+
+bad.
+
+Need every window roughly
+
+```
+mean = 0
+
+unit variance
+```
+
+(or robust MAD scaling)
+
+because different patients have different amplitudes.
+
+Otherwise network partly memorize amplitude.
+
+---
+
+# 9. Weight decay tuning ⭐⭐⭐☆☆
+
+Notebook use
+
+```
+AdamW
+```
+
+Good.
+
+Maybe try
+
+```
+weight_decay
+
+1e-4
+
+5e-4
+
+1e-3
+```
+
+Small sweep.
+
+Reason
+
+Universal model often benefit.
+
+Not huge priority.
+
+---
+
+# 10. Hard validation ⭐⭐⭐⭐⭐
+
+Current validation
+
+```
+121-124
+```
+
+Good.
+
+But final benchmark should be
+
+```
+Train
+↓
+
+MIT
+
+Validate
+↓
+
+MIT unseen
+
+Test
+↓
+
+QTDB
+
+Never touched
+```
+
+QTDB becomes true final exam.
+
+Never tune directly on QTDB.
+
+Otherwise overfit move from MIT to QTDB.
+
+---
+
+# 11. Biggest thing me would add ⭐⭐⭐⭐⭐
+
+Curriculum learning.
+
+Instead of
+
+```
+all noise levels immediately
+```
+
+Train
+
+```
+Epoch 1-20
+
+moderate noise
+
+↓
+
+Epoch 21-60
+
+easy + moderate
+
+↓
+
+Epoch 61-120
+
+all noise strengths
+```
+
+Reason
+
+Network first learn
+
+"What ECG is."
+
+Then
+
+"What artifact is."
+
+Not both together immediately.
+
+Could stabilize learning.
+
+Need experiment.
+
+---
+
+# 12. Metrics
+
+Do not trust only
+
+```
+Loss
+```
+
+Every validation compute
+
+* RMSE
+* Correlation
+* PRD
+* SNR improvement
+* Predicted artifact RMS on clean ECG
+
+Last one very important.
+
+If clean ECG produce
+
+```
+artifact ≈ 0
+```
+
+then model finally understand
+
+"Nothing remove."
+
+---
+
+# Me ranking
+
+| Change                       | Priority | Keep if works?                 |
+| ---------------------------- | -------- | ------------------------------ |
+| More MIT records             | ⭐⭐⭐⭐⭐    | Yes                            |
+| Longer training / patience   | ⭐⭐⭐⭐⭐    | Yes                            |
+| Wider noise SNR distribution | ⭐⭐⭐⭐⭐    | Yes                            |
+| More clean windows           | ⭐⭐⭐⭐☆    | Yes if clean distortion drops  |
+| Random mixed artifacts       | ⭐⭐⭐⭐☆    | Yes                            |
+| Curriculum learning          | ⭐⭐⭐⭐⭐    | Worth testing                  |
+| Better normalization         | ⭐⭐⭐⭐☆    | Yes                            |
+| Weight decay tuning          | ⭐⭐⭐☆☆    | Maybe                          |
+| Loss tweaks                  | ⭐⭐⭐☆☆    | Only if external test improves |
+
+Me think project now **90% data problem, 10% optimization problem**.
+
+Me **not** think CNN bottleneck yet. If after all above QTDB still negative SNR, then maybe architecture discussion. Until then, me keep CNN and attack data first.
+.
