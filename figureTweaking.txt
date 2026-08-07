@@ -1,0 +1,142 @@
+FIGURE 3
+Purpose
+
+Demonstrate the performance of the baseline model (R3) on QTDB.
+
+Dataset
+
+QTDB Validation Set
+
+Model
+
+R3 (Unweighted Focal Loss)
+
+ECG shown
+Exactly one validation segment
+Length: 512 samples (your model input)
+Contains 2–3 complete cardiac cycles
+Choose a segment with clearly visible P, QRS and T waves.
+Total panels
+
+3 Panels
+
+Panel 1
+
+Title
+
+QTDB ECG Signal
+
+Content
+
+Black ECG waveform
+x-axis = Sample Index
+y-axis = Normalized Amplitude
+No predictions
+No labels
+No R-peak marker
+No coloured regions
+
+Purpose
+
+Shows the raw signal.
+
+Panel 2
+
+Title
+
+Ground Truth
+
+Content
+
+Exactly the same x-axis.
+
+Display
+
+Background
+P
+QRS
+T
+
+according to expert annotation.
+
+Panel 3
+
+Title
+
+R3 Prediction
+
+Content
+
+Prediction of R3
+
+Exactly same format as Panel 2.
+
+Figure Caption
+Representative ECG delineation produced by the baseline model (R3) on a QTDB validation segment.
+FIGURE 4
+Purpose
+
+Compare baseline (R3) with proposed model (R6).
+
+This is the figure that demonstrates your contribution.
+
+Dataset
+
+LUDB Test Set
+
+Models
+
+Ground Truth
+
+↓
+
+R3
+
+↓
+
+R6
+
+ECG shown
+Same ECG segment for all panels
+Length = 512 samples
+2–3 cardiac cycles
+Total panels
+
+4 Panels
+
+Panel 1
+
+Title
+
+LUDB ECG Signal
+
+Content
+
+Raw ECG only.
+
+Panel 2
+
+Title
+
+Ground Truth
+
+Expert annotations.
+
+Panel 3
+
+Title
+
+Baseline (R3)
+
+Prediction from baseline.
+
+Panel 4
+
+Title
+
+Proposed Framework (R6)
+
+Prediction from final model.
+
+Figure Caption
+Qualitative comparison between the baseline model (R3) and the proposed physiolog

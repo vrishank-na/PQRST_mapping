@@ -1,0 +1,112 @@
+📈 Figure 3 — Representative Prediction Comparison
+Purpose
+
+Show that the final model produces better delineation than an earlier version.
+
+This is qualitative evidence supporting Table 2.
+
+Layout
+
+Three rows × One ECG segment
+
+Ground Truth
+────────────────────────────────────────
+
+Baseline Model (R3)
+────────────────────────────────────────
+
+Final Model (R6)
+────────────────────────────────────────
+Exactly what ECG segment?
+
+Choose one representative 5–8 second ECG segment from the QTDB validation set.
+
+The segment should contain:
+
+✅ 2–3 complete cardiac cycles
+✅ Clearly visible P waves
+✅ QRS complexes
+✅ T waves
+
+Avoid a segment where everything is already perfect.
+
+Color Coding
+
+Ground Truth:
+
+Background → Gray
+P → Blue
+QRS → Red
+T → Green
+
+Use the same colors for all three rows.
+
+What should reviewers notice?
+
+Mark 2–3 regions using red dashed circles or arrows:
+
+Example:
+
+Missed P-wave boundary
+Incorrect T-wave ending
+Improved prediction in R6
+
+Don't annotate more than 3 regions.
+
+Caption
+
+Figure 3. Representative prediction results comparing the baseline model and the proposed framework on a QTDB validation segment. The proposed framework produces more physiologically consistent delineation, particularly around low-amplitude P and T wave boundaries.
+
+📈 Figure 4 — Boundary-Level Comparison
+
+This is NOT another prediction plot.
+
+This is a zoomed-in analysis.
+
+Layout
+
+Take one highlighted region from Figure 3 and enlarge it.
+
+Ground Truth (Zoom)
+
+──────────────
+
+Baseline (Zoom)
+
+──────────────
+
+Proposed (Zoom)
+Exactly what should be zoomed?
+
+Choose one difficult region.
+
+Examples:
+
+P-wave onset
+T-wave offset
+P-QRS transition
+
+Avoid QRS only, because QRS is already easy for most models.
+
+I recommend P-wave onset, since that's where physiological guidance is most valuable.
+
+Zoom Window
+
+Around 300–500 ms.
+
+Just enough to clearly show the boundary difference.
+
+Highlight
+
+Draw vertical dashed lines:
+
+GT Boundary
+     │
+
+Baseline Boundary
+     │
+
+Proposed Boundary
+     │
+
+The reviewer should immediately see that the proposed model is closer to the ground truth.
