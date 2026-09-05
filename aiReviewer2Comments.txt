@@ -1,0 +1,1376 @@
+Absolutely. I’d give your teammate a *single master prompt* that tells him to treat Reviewer 2 as a full methodological audit + experimental revision, rather than just patching the obvious R3/R6 comparison.
+
+I would also make the prompt explicitly tell him *not to optimize for preserving the existing numbers*. The purpose is to produce the most defensible revised experiment, even if the new numbers are worse.
+
+Here is the prompt I recommend pasting into the teammate's chat:
+
+---
+
+# MASTER PROMPT — REVIEWER 2 COMPLETE REVISION
+
+We are revising an ECG deep-learning research paper in response to *Reviewer 2*.
+
+You are working on the uploaded notebook:
+
+*⁠ ML2_COMPLETION (1).ipynb ⁠*
+
+The paper is:
+
+*⁠ ICBBE (9).pdf ⁠*
+
+Your job is to modify/rerun the notebook so that *Reviewer 2 is addressed completely and scientifically honestly*.
+
+## MOST IMPORTANT RULE
+
+Do *not* try to preserve the existing reported performance.
+
+If the corrected protocol produces lower performance, we will report the lower performance.
+
+Do not alter labels, remove difficult records, change thresholds, change evaluation populations, or otherwise modify the experiment simply to improve the numbers.
+
+The goal is:
+
+	⁠*a leakage-free, matched, reproducible, statistically defensible experimental protocol.*
+
+Never invent a result or experimental detail.
+
+If something cannot be established from the existing notebook, explicitly say so and implement a new experiment where necessary.
+
+---
+
+# REVIEWER 2 COMMENT
+
+Reviewer 2 states:
+
+	⁠“The author(s) shall clarify the splits and demonstrate that leakage was prevented. All partitions should be created by patient or record before windowing, with every beat, lead, and overlapping window from one record kept in a single partition. The 10% LUDB adaptation subset should likewise be selected at record level before any tuning. State whether LUDB labels or test performance influenced hyperparameter choices. As currently written, R3 appears to be evaluated on all LUDB records while R6 is evaluated on a different remaining subset, so the two reported scores are not directly comparable. Evaluate all relevant models on the same untouched test records and report results across repeated seeds or record-level splits with confidence intervals.”
+
+We need to address *every part* of this comment.
+
+---
+
+# PART 0 — FIRST AUDIT THE EXISTING NOTEBOOK
+
+Before changing anything, inspect the entire notebook and establish what is currently implemented.
+
+Do not assume the project context is correct if the notebook says otherwise.
+
+Create a short internal audit containing:
+
+### QTDB
+
+•⁠  ⁠number of records
+•⁠  ⁠current record split
+•⁠  ⁠when the split happens
+•⁠  ⁠when windows are generated
+•⁠  ⁠number of train/validation windows
+•⁠  ⁠normalization procedure
+•⁠  ⁠whether record IDs are retained
+
+### LUDB
+
+•⁠  ⁠number of records
+•⁠  ⁠current adaptation/test split
+•⁠  ⁠when the split happens
+•⁠  ⁠when windows are generated
+•⁠  ⁠number of adaptation/test windows
+•⁠  ⁠whether the test data enter optimization anywhere
+•⁠  ⁠whether test performance is used for any decision
+
+### R1–R6
+
+For each experiment determine:
+
+•⁠  ⁠training data
+•⁠  ⁠validation data
+•⁠  ⁠loss
+•⁠  ⁠checkpoint selection
+•⁠  ⁠threshold selection if applicable
+•⁠  ⁠LUDB usage
+•⁠  ⁠whether it requires retraining for the revised experiment
+•⁠  ⁠whether it can simply be re-evaluated
+
+Do not modify the paper yet.
+
+---
+
+# PART 1 — RECORD-LEVEL SPLITTING BEFORE WINDOW GENERATION
+
+## 1A. QTDB
+
+The desired protocol is:
+
+⁠ text
+105 QTDB records
+        ↓
+record-level train/validation split
+        ↓
+window generation within each partition
+        ↓
+training / validation
+ ⁠
+
+NOT:
+
+⁠ text
+all records
+        ↓
+generate all windows
+        ↓
+split windows
+ ⁠
+
+The current notebook actually uses record IDs to create the resulting train/validation masks, so do *not* incorrectly describe the existing implementation as a random window-level split.
+
+However, the reviewer explicitly asks for the split to occur *before window generation*.
+
+Therefore restructure the QTDB preprocessing so that:
+
+⁠ python
+QTDB records
+    ↓
+train_records / val_records
+    ↓
+build QTDB windows separately for train records
+build QTDB windows separately for validation records
+ ⁠
+
+Use the existing intended record-level split unless there is a strong reason to change it:
+
+⁠ python
+test_size=0.20
+random_state=7
+shuffle=True
+ ⁠
+
+This should produce approximately:
+
+⁠ text
+84 training records
+21 validation records
+ ⁠
+
+But do NOT assume the exact counts; calculate and print them from the actual notebook run.
+
+### Important
+
+Preserve the exact R-centered window definition:
+
+⁠ text
+PRE = 120
+POST = 240
+BEAT_LENGTH = 360
+ ⁠
+
+R is at sample index 120.
+
+Do not introduce padding.
+
+Do not introduce a sliding-window stride.
+
+Windows remain centered on detected R peaks.
+
+---
+
+# PART 2 — LUDB RECORD SPLIT BEFORE WINDOW GENERATION
+
+The reviewer specifically requires the 10% adaptation subset to be selected at record level.
+
+The desired protocol is:
+
+⁠ text
+200 LUDB records
+        ↓
+record-level split
+        ↓
+20 adaptation records
+180 untouched test records
+        ↓
+generate windows separately
+ ⁠
+
+Use:
+
+⁠ python
+R6_ADAPT_FRACTION = 0.10
+random_state = 17
+ ⁠
+
+unless the audit shows that another fixed choice is already explicitly justified.
+
+Save the exact record lists:
+
+⁠ python
+r6_adapt_records
+r6_test_records
+ ⁠
+
+and print them.
+
+Also save them to a CSV/text/JSON artifact if practical.
+
+### Critical rule
+
+The 180 test records must never enter:
+
+•⁠  ⁠optimizer
+•⁠  ⁠adaptation
+•⁠  ⁠checkpoint selection
+•⁠  ⁠threshold selection
+•⁠  ⁠hyperparameter tuning
+•⁠  ⁠epoch selection
+•⁠  ⁠model selection
+•⁠  ⁠normalization-statistic calculation
+•⁠  ⁠any decision based on labels.
+
+---
+
+# PART 3 — VERIFY NO RECORD OVERLAP
+
+Add explicit assertions.
+
+For QTDB:
+
+⁠ python
+assert set(train_records).isdisjoint(set(val_records))
+assert set(train_records).union(set(val_records)) == set(all_qtdb_records)
+ ⁠
+
+For LUDB:
+
+⁠ python
+assert set(r6_adapt_records).isdisjoint(set(r6_test_records))
+assert set(r6_adapt_records).union(set(all_ludb_records)) == set(all_ludb_records)
+ ⁠
+
+Adjust the exact assertion according to skipped/unusable records if the dataset preprocessing genuinely excludes some records.
+
+Do NOT silently claim 200/105 records if some records were skipped.
+
+Also verify the window-level record IDs:
+
+⁠ python
+assert set(train_window_record_ids).isdisjoint(
+    set(val_window_record_ids)
+)
+ ⁠
+
+and:
+
+⁠ python
+assert set(adapt_window_record_ids).isdisjoint(
+    set(test_window_record_ids)
+)
+ ⁠
+
+The important invariant is:
+
+	⁠*No beat/window originating from one record can occur in more than one partition.*
+
+---
+
+# PART 4 — VERIFY THE NORMALIZATION PROTOCOL
+
+The normalization must remain leakage-free.
+
+For QTDB:
+
+⁠ python
+train_mean = training_windows.mean()
+train_std = training_windows.std()
+ ⁠
+
+computed *only from QTDB training windows*.
+
+Then use those same values for:
+
+⁠ text
+QTDB validation
+LUDB adaptation
+LUDB test
+ ⁠
+
+Do NOT recompute normalization using:
+
+•⁠  ⁠QTDB validation
+•⁠  ⁠LUDB adaptation
+•⁠  ⁠LUDB test
+
+and absolutely do not use the 180 LUDB test records to calculate normalization statistics.
+
+Print and save:
+
+⁠ text
+QTDB training mean
+QTDB training std
+ ⁠
+
+for each repeated run where relevant.
+
+---
+
+# PART 5 — AUDIT ALL POSSIBLE LUDB TEST INFORMATION PATHWAYS
+
+This is a major part of Reviewer 2.
+
+We need to establish whether LUDB labels/test performance influenced any experimental decisions.
+
+Audit every R1–R6 experiment.
+
+For each experiment answer:
+
+### Training
+
+Was any LUDB test data used to train the model?
+
+### Adaptation
+
+Was any LUDB test data used for adaptation?
+
+### Checkpoint selection
+
+Was LUDB performance used to choose the checkpoint?
+
+### Hyperparameters
+
+Was LUDB performance used to choose:
+
+•⁠  ⁠learning rate
+•⁠  ⁠batch size
+•⁠  ⁠loss
+•⁠  ⁠focal gamma
+•⁠  ⁠architecture
+•⁠  ⁠window size
+•⁠  ⁠number of epochs
+•⁠  ⁠adaptation epochs
+•⁠  ⁠threshold
+•⁠  ⁠any other parameter?
+
+### Decoder threshold
+
+For R4, verify that the threshold is selected using QTDB validation only.
+
+The existing threshold search is approximately:
+
+⁠ text
+0.10, 0.15, ..., 0.75
+ ⁠
+
+and should remain QTDB-validation-based.
+
+Do NOT tune the R4 threshold on the 180-record LUDB test set.
+
+### R6 adaptation epochs
+
+The current notebook uses:
+
+⁠ python
+R6_ADAPT_EPOCHS = 8
+ ⁠
+
+and comments that this is fixed before scoring the untouched LUDB records.
+
+Verify this.
+
+Do not select the number of adaptation epochs based on test performance.
+
+If the code contains any hidden test-based selection, fix it.
+
+---
+
+# PART 6 — FIX THE UNMATCHED R3 VS R6 COMPARISON
+
+This is the central experimental correction.
+
+Currently the protocol is effectively:
+
+⁠ text
+R3 → all 200 LUDB records
+
+R6 → adapt on 20
+      test on 180
+ ⁠
+
+Therefore the existing:
+
+⁠ text
+R3 = 0.8236
+R6 = 0.8451
+ ⁠
+
+comparison is not directly matched.
+
+Do NOT continue presenting those numbers as a clean comparison.
+
+---
+
+# PART 7 — CREATE ONE COMMON LUDB TEST POPULATION
+
+Create a fixed record-level LUDB split:
+
+⁠ text
+20 adaptation records
+180 untouched test records
+ ⁠
+
+Then evaluate *all relevant models on exactly those same 180 records*.
+
+At minimum:
+
+⁠ text
+R3
+R4
+R5
+R6
+ ⁠
+
+should be evaluated on the same 180 test records.
+
+Preferably also produce matched evaluation for:
+
+⁠ text
+R1
+R2
+ ⁠
+
+because this gives a complete common-test audit of R1–R6.
+
+However, distinguish between:
+
+### Existing checkpoint re-evaluation
+
+and
+
+### New repeated-seed retraining.
+
+For the first matched evaluation, use the existing saved checkpoints where scientifically valid.
+
+---
+
+# PART 8 — IMPORTANT: R3/R4/R5/R6 HAVE DIFFERENT WINDOW LENGTHS
+
+Do NOT force them to use identical windows merely to claim a "same test set."
+
+The correct meaning of common test set is:
+
+	⁠*the same 180 LUDB records.*
+
+R3/R4 use the existing 360-sample representation.
+
+R5/R6 use the 440-sample representation:
+
+⁠ text
+120 samples before R
+320 samples after R
+ ⁠
+
+Therefore:
+
+⁠ text
+same 180 records
+but model-specific valid R-centered windows
+ ⁠
+
+is acceptable.
+
+Make sure all eligible R-centered windows from those records are included for the corresponding model.
+
+Do not compare only a manually selected subset of beats.
+
+---
+
+# PART 9 — RE-EVALUATE EXISTING CHECKPOINTS BEFORE RETRAINING
+
+This is important for computational efficiency.
+
+First perform:
+
+⁠ text
+Existing R3 checkpoint
+        ↓
+same 180 LUDB test records
+
+Existing R4
+        ↓
+same 180 LUDB test records
+
+Existing R5 checkpoint
+        ↓
+same 180 LUDB test records
+
+Existing R6 adapted checkpoint
+        ↓
+same 180 LUDB test records
+ ⁠
+
+Do the same for R1/R2 if their checkpoints are available.
+
+Report:
+
+•⁠  ⁠number of test records
+•⁠  ⁠number of windows
+•⁠  ⁠P precision
+•⁠  ⁠P recall
+•⁠  ⁠P F1
+•⁠  ⁠T precision
+•⁠  ⁠T recall
+•⁠  ⁠T F1
+•⁠  ⁠Background metrics
+•⁠  ⁠Macro F1
+•⁠  ⁠weighted F1
+•⁠  ⁠accuracy
+
+The primary metric remains Macro F1.
+
+### IMPORTANT
+
+Do not overwrite the old results.
+
+Create a clearly labelled section:
+
+⁠ markdown
+# Reviewer 2 — Matched Common-Test Evaluation
+ ⁠
+
+The old full-LUDB results should remain available for traceability and be labelled:
+
+⁠ text
+Previous protocol — all-LUDB evaluation
+ ⁠
+
+The new results should be labelled:
+
+⁠ text
+Reviewer 2 matched protocol — common 180-record LUDB test set
+ ⁠
+
+---
+
+# PART 10 — REPEATED-SEED EXPERIMENT
+
+Reviewer 2 additionally asks:
+
+	⁠“report results across repeated seeds or record-level splits with confidence intervals.”
+
+We should perform a genuine repeated-seed experiment.
+
+Do NOT simply evaluate the same checkpoint multiple times.
+
+The model must actually be retrained.
+
+---
+
+# PART 11 — IMPLEMENT A REAL RANDOM-SEED FUNCTION
+
+Add a centralized function such as:
+
+⁠ python
+def set_global_seed(seed):
+    ...
+ ⁠
+
+It should control, where applicable:
+
+⁠ text
+Python random
+NumPy
+PyTorch CPU
+PyTorch CUDA
+ ⁠
+
+and:
+
+⁠ text
+DataLoader shuffling
+model initialization
+ ⁠
+
+Also configure deterministic behavior where practical.
+
+For example, investigate:
+
+⁠ python
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
+ ⁠
+
+but only apply settings that are compatible with the actual execution environment.
+
+Do not falsely claim perfect bitwise reproducibility if the environment/device does not guarantee it.
+
+---
+
+# PART 12 — CHOOSE THE REPEATED EXPERIMENT DESIGN CAREFULLY
+
+Use the following preferred design unless there is a demonstrated computational or implementation reason not to.
+
+## Fixed record partitions
+
+Keep the record populations fixed:
+
+⁠ text
+QTDB:
+84 train
+21 validation
+
+LUDB:
+20 adaptation
+180 test
+ ⁠
+
+The same record IDs should be used for every repeated run.
+
+This isolates *training stochasticity* from changing test populations.
+
+Then perform approximately:
+
+⁠ text
+Seed 1
+Seed 2
+Seed 3
+Seed 4
+Seed 5
+ ⁠
+
+Do not call the existing ⁠ random_state=7 ⁠ or ⁠ random_state=17 ⁠ the global training seed.
+
+Those are record-split seeds.
+
+---
+
+# PART 13 — WHICH MODELS SHOULD BE RETRAINED?
+
+For the strongest Reviewer-2 response, the preferred repeated experiment is:
+
+### R1
+
+Retrain.
+
+### R2
+
+Retrain.
+
+### R3
+
+Retrain.
+
+### R4
+
+No independent neural-network training.
+
+R4 is derived from the corresponding frozen R1 model.
+
+For each R1 seed:
+
+⁠ text
+R1 trained model
+        ↓
+QTDB validation threshold selection
+        ↓
+R4 decoder
+        ↓
+same LUDB 180-record test set
+ ⁠
+
+### R5
+
+Retrain.
+
+### R6
+
+Retrain.
+
+For R6:
+
+⁠ text
+QTDB training
+      ↓
+best QTDB validation-loss checkpoint
+      ↓
+20-record LUDB adaptation
+      ↓
+fixed 8 adaptation epochs
+      ↓
+180-record untouched LUDB test
+ ⁠
+
+The 180 test records must never enter the optimizer.
+
+---
+
+# PART 14 — DO NOT CHANGE THE EXPERIMENTAL DEFINITIONS DURING THIS RERUN
+
+Preserve the actual experiment definitions.
+
+### R1
+
+•⁠  ⁠360-sample R-centered window
+•⁠  ⁠CrossEntropy
+•⁠  ⁠Adam
+•⁠  ⁠LR 1e-3
+•⁠  ⁠batch size 64
+•⁠  ⁠maximum 30 epochs
+•⁠  ⁠minimum QTDB validation loss checkpoint
+
+### R2
+
+Same as R1 except:
+
+•⁠  ⁠weighted focal loss
+•⁠  ⁠gamma = 2
+•⁠  ⁠inverse-frequency class weighting
+
+### R3
+
+Same architecture/training protocol except:
+
+•⁠  ⁠unweighted focal loss
+•⁠  ⁠gamma = 2
+
+### R4
+
+Frozen R1 model.
+
+R-aware decoder.
+
+Threshold selected only on QTDB validation.
+
+### R5
+
+•⁠  ⁠PRE = 120
+•⁠  ⁠POST = 320
+•⁠  ⁠440 samples total
+•⁠  ⁠CrossEntropy
+•⁠  ⁠Adam 1e-3
+•⁠  ⁠maximum 30 epochs
+•⁠  ⁠lowest QTDB validation loss checkpoint
+
+### R6
+
+•⁠  ⁠same 440-sample representation as R5
+•⁠  ⁠second R-relative time channel
+•⁠  ⁠time formula:
+
+⁠ python
+t_i = (i - PRE) / POST
+ ⁠
+
+Do NOT describe the channel as exactly -1 to +1 unless the implementation actually produces that.
+
+•⁠  ⁠QTDB training
+•⁠  ⁠lowest QTDB validation-loss checkpoint
+•⁠  ⁠20-record LUDB adaptation
+•⁠  ⁠8 fixed adaptation epochs
+•⁠  ⁠180-record untouched test
+
+Do not introduce additional tuning during this experiment.
+
+---
+
+# PART 15 — IMPORTANT: SAVE RECORD LISTS AND PROVENANCE
+
+For the revised experiment, save exact:
+
+⁠ text
+QTDB train record IDs
+QTDB validation record IDs
+
+LUDB adaptation record IDs
+LUDB test record IDs
+ ⁠
+
+Also save a machine-readable file, preferably CSV or JSON.
+
+For each repeated run save:
+
+⁠ text
+seed
+QTDB train records
+QTDB validation records
+LUDB adaptation records
+LUDB test records
+
+QTDB train window count
+QTDB validation window count
+LUDB adaptation window count
+LUDB test window count
+
+training mean
+training std
+
+best QTDB validation loss
+best epoch
+
+R4 threshold, where applicable
+
+adaptation epochs
+
+final test metrics
+ ⁠
+
+This is essential for reproducibility.
+
+---
+
+# PART 16 — ADD LEAKAGE ASSERTIONS
+
+The notebook should fail loudly if leakage occurs.
+
+Include assertions for:
+
+⁠ python
+assert train_records ∩ val_records == ∅
+ ⁠
+
+⁠ python
+assert adapt_records ∩ test_records == ∅
+ ⁠
+
+and window-record identities.
+
+Also assert that:
+
+⁠ text
+LUDB test records
+ ⁠
+
+are never present in:
+
+⁠ text
+R6 adaptation loader
+ ⁠
+
+and that no test labels are passed into any training or tuning function.
+
+If possible, inspect the adaptation DataLoader and explicitly print:
+
+⁠ text
+Adaptation records used: 20
+Test records excluded from adaptation: 180
+ ⁠
+
+---
+
+# PART 17 — IMPORTANT CHECKPOINT SELECTION RULE
+
+For R1/R2/R3/R5/R6 QTDB training:
+
+⁠ text
+30 epochs maximum
+↓
+track QTDB validation loss
+↓
+save minimum-validation-loss checkpoint
+ ⁠
+
+Do NOT select based on:
+
+•⁠  ⁠QTDB validation F1 if the original protocol uses validation loss
+•⁠  ⁠LUDB F1
+•⁠  ⁠LUDB loss
+•⁠  ⁠LUDB boundary error
+•⁠  ⁠visual inspection of LUDB
+•⁠  ⁠final test score.
+
+Preserve the existing model-selection principle unless the audit proves the notebook currently does something different.
+
+---
+
+# PART 18 — R4 THRESHOLD SELECTION
+
+For every repeated R1/R4 run:
+
+The R4 threshold must be calibrated on:
+
+⁠ text
+QTDB validation
+ ⁠
+
+only.
+
+It must NOT use:
+
+⁠ text
+LUDB adaptation
+LUDB test
+ ⁠
+
+The threshold sweep remains:
+
+⁠ text
+0.10–0.75
+step = 0.05
+ ⁠
+
+unless the notebook audit reveals that the actual implementation differs.
+
+Record the selected threshold for each seed.
+
+Do not choose a threshold because it gives the best LUDB result.
+
+---
+
+# PART 19 — R6 ADAPTATION PROTOCOL
+
+This deserves special care.
+
+For each repeated seed:
+
+⁠ text
+QTDB train
+      ↓
+QTDB validation
+      ↓
+best QTDB checkpoint
+      ↓
+20 LUDB adaptation records
+      ↓
+8 fixed epochs
+      ↓
+180 LUDB test records
+ ⁠
+
+The adaptation optimizer may use:
+
+⁠ text
+Adam
+learning rate = 1e-4
+ ⁠
+
+as in the existing implementation.
+
+Do not tune adaptation epochs against the 180-record test set.
+
+Do not stop adaptation early based on test performance.
+
+Do not select the best adaptation epoch using test F1.
+
+---
+
+# PART 20 — COMMON-TEST EVALUATION OUTPUT
+
+Produce a table like:
+
+| Experiment | LUDB Test Records | Windows | P F1 | T F1 | Macro F1 |
+| ---------- | ----------------: | ------: | ---: | ---: | -------: |
+| R1         |               180 |     ... |  ... |  ... |      ... |
+| R2         |               180 |     ... |  ... |  ... |      ... |
+| R3         |               180 |     ... |  ... |  ... |      ... |
+| R4         |               180 |     ... |  ... |  ... |      ... |
+| R5         |               180 |     ... |  ... |  ... |      ... |
+| R6         |               180 |     ... |  ... |  ... |      ... |
+
+Again:
+
+*180 is the number of records, not necessarily the number of windows.*
+
+R5/R6 will naturally have their own window counts because they use 440-sample windows.
+
+---
+
+# PART 21 — REPEATED-SEED RESULTS
+
+For each model and seed, save the individual results.
+
+Example:
+
+| Seed | R3 Macro F1 | R4 Macro F1 | R5 Macro F1 | R6 Macro F1 |
+| ---: | ----------: | ----------: | ----------: | ----------: |
+|    1 |         ... |         ... |         ... |         ... |
+|    2 |         ... |         ... |         ... |         ... |
+|    3 |         ... |         ... |         ... |         ... |
+|    4 |         ... |         ... |         ... |         ... |
+|    5 |         ... |         ... |         ... |         ... |
+
+Also retain:
+
+•⁠  ⁠P F1
+•⁠  ⁠T F1
+•⁠  ⁠optionally precision/recall
+•⁠  ⁠Macro F1
+
+for each seed.
+
+Do NOT only save the averages.
+
+---
+
+# PART 22 — CALCULATE MEAN, SD, AND 95% CI
+
+For each experiment calculate:
+
+⁠ text
+mean
+sample standard deviation
+95% confidence interval
+ ⁠
+
+Use a t-based CI because the number of repeated runs is small.
+
+For 5 seeds:
+
+$$
+CI_{95\%}
+=
+\bar{x}
+\pm
+t_{0.975,4}
+\frac{s}{\sqrt{5}}
+$$
+
+where:
+
+•⁠  ⁠\(\bar{x}\) = mean
+•⁠  ⁠\(s\) = sample SD
+•⁠  ⁠\(n=5\)
+
+Do not treat individual ECG samples as independent observations for this CI.
+
+The repeated runs are the independent units for this uncertainty estimate.
+
+---
+
+# PART 23 — ALSO REPORT THE DIFFERENCE BETWEEN R3 AND R6
+
+Reviewer 2 is particularly concerned about the R3/R6 comparison.
+
+Therefore calculate, for every seed:
+
+⁠ text
+R6 Macro F1 − R3 Macro F1
+ ⁠
+
+Then report:
+
+⁠ text
+mean difference
+SD of difference
+95% CI of difference
+ ⁠
+
+This is more informative than only reporting two separate CIs.
+
+If the improvement is inconsistent across seeds, explicitly show that.
+
+If R6 is lower, report that.
+
+Do not hide unfavorable results.
+
+---
+
+# PART 24 — DO NOT OVERCLAIM STATISTICAL SIGNIFICANCE
+
+Do NOT automatically say:
+
+	⁠R6 significantly outperformed R3
+
+just because the means differ.
+
+With only five runs, statistical conclusions should be cautious.
+
+If appropriate, report:
+
+⁠ text
+mean difference
+95% CI
+ ⁠
+
+and describe whether the interval clearly excludes zero.
+
+If the CI overlaps zero, say the improvement is uncertain rather than statistically established.
+
+---
+
+# PART 25 — PRESERVE OLD RESULTS
+
+Do not delete the current experimental results.
+
+The old results are useful for provenance.
+
+Clearly label them:
+
+⁠ text
+Historical results under previous evaluation protocol
+ ⁠
+
+The revised results should be labelled:
+
+⁠ text
+Reviewer 2 leakage-free matched evaluation
+ ⁠
+
+This is important because the revised common-test results may differ from the current paper.
+
+---
+
+# PART 26 — DO NOT MODIFY THE PAPER YET
+
+Do NOT rewrite:
+
+•⁠  ⁠abstract
+•⁠  ⁠introduction
+•⁠  ⁠discussion
+•⁠  ⁠conclusion
+•⁠  ⁠tables
+•⁠  ⁠claims
+
+until the new experiments have actually been completed and inspected.
+
+At the end of the notebook rerun, produce a clear report containing:
+
+## A. Protocol
+
+•⁠  ⁠exact QTDB train records
+•⁠  ⁠exact QTDB validation records
+•⁠  ⁠exact LUDB adaptation records
+•⁠  ⁠exact LUDB test records
+
+## B. Partition sizes
+
+•⁠  ⁠record counts
+•⁠  ⁠window counts
+•⁠  ⁠class counts
+
+## C. Leakage verification
+
+All assertions and their outputs.
+
+## D. Existing-checkpoint matched evaluation
+
+R1–R6 where possible.
+
+## E. Repeated-seed evaluation
+
+All seeds and all results.
+
+## F. Aggregate results
+
+Mean ± SD + 95% CI.
+
+## G. R3 vs R6 difference
+
+Mean difference + CI.
+
+## H. Training provenance
+
+•⁠  ⁠best epoch
+•⁠  ⁠validation loss
+•⁠  ⁠seed
+•⁠  ⁠checkpoint
+•⁠  ⁠adaptation epochs
+
+## I. Scientific interpretation
+
+State plainly whether:
+
+1.⁠ ⁠R6 still outperforms R3 on the common test population.
+2.⁠ ⁠The improvement is consistent across seeds.
+3.⁠ ⁠The difference is larger than the observed variability.
+4.⁠ ⁠Any original claim needs to be weakened.
+5.⁠ ⁠Any additional experiment is necessary.
+
+---
+
+# PART 27 — COMPUTATIONAL STRATEGY
+
+Be computationally practical, but *do not sacrifice scientific validity to save compute*.
+
+Use the following order:
+
+### Stage A
+
+Implement the leakage-free record-before-windowing protocol.
+
+### Stage B
+
+Run the common 180-record LUDB evaluation using existing checkpoints.
+
+This tells us what happens to the old models when evaluated fairly.
+
+### Stage C
+
+Implement the reproducible seed mechanism.
+
+### Stage D
+
+Run repeated seeds.
+
+Preferred:
+
+⁠ text
+5 seeds
+ ⁠
+
+If computation becomes excessive, do NOT silently reduce the experiment.
+
+Instead report:
+
+	⁠“The requested repeated-seed protocol is computationally incomplete and requires additional runs.”
+
+Then we can decide explicitly.
+
+---
+
+# PART 28 — IMPORTANT DISTINCTION FROM REVIEWER 3
+
+Do NOT confuse Reviewer 2 with Reviewer 3.
+
+Reviewer 2 asks:
+
+•⁠  ⁠leakage prevention
+•⁠  ⁠record-level partitioning
+•⁠  ⁠matched test population
+•⁠  ⁠test isolation
+•⁠  ⁠repeated seeds/splits
+•⁠  ⁠confidence intervals
+
+Reviewer 3 asks whether the individual components:
+
+•⁠  ⁠R audit
+•⁠  ⁠POST320
+•⁠  ⁠temporal channel
+•⁠  ⁠adaptation
+
+have been isolated in matched ablations.
+
+*Do not redesign R3/R5/R6 merely to solve Reviewer 3 while working on Reviewer 2.*
+
+We need to solve Reviewer 2 first.
+
+---
+
+# PART 29 — EXISTING PAPER CLAIMS MUST NOT DRIVE THE NEW RESULTS
+
+The current paper reports approximately:
+
+⁠ text
+R3 LUDB = 0.8236
+R6 LUDB = 0.8451
+ ⁠
+
+but these were obtained under different LUDB evaluation populations.
+
+Do not use those numbers as targets.
+
+The new experiment is authoritative for the revised paper.
+
+Possible outcomes:
+
+### Outcome A
+
+R6 remains clearly better.
+
+Then we can retain a carefully qualified improvement claim.
+
+### Outcome B
+
+R6 remains slightly better but uncertainty is large.
+
+Then the paper must describe the improvement cautiously.
+
+### Outcome C
+
+R3 and R6 are approximately equivalent.
+
+Then we should not claim meaningful improvement.
+
+### Outcome D
+
+R6 is worse.
+
+Then report that honestly and revise the paper's interpretation.
+
+---
+
+# PART 30 — FINAL DELIVERABLE FROM THIS NOTEBOOK REVISION
+
+When you finish, do NOT just say “done.”
+
+Return a structured report:
+
+⁠ text
+REVIEWER 2 STATUS
+
+2.1 Record-before-windowing:
+PASS / PARTIAL / FAIL
+
+2.2 Partition leakage assertions:
+PASS / PARTIAL / FAIL
+
+2.3 LUDB 20/180 record split:
+PASS / PARTIAL / FAIL
+
+2.4 Test isolation:
+PASS / PARTIAL / FAIL
+
+2.5 Common 180-record evaluation:
+PASS / PARTIAL / FAIL
+
+2.6 Repeated seeds:
+PASS / PARTIAL / FAIL
+
+2.7 Confidence intervals:
+PASS / PARTIAL / FAIL
+
+2.8 Exact record/window counts:
+PASS / PARTIAL / FAIL
+ ⁠
+
+Then provide:
+
+### Existing matched results
+
+R1–R6 on common 180 LUDB records.
+
+### Repeated results
+
+Every seed.
+
+### Aggregate results
+
+Mean / SD / 95% CI.
+
+### R3 vs R6
+
+Per-seed difference + mean difference + CI.
+
+### Retraining performed
+
+List exactly which models were retrained and how many times.
+
+### Not retrained
+
+List exactly which models were only re-evaluated and why that is scientifically valid.
+
+### Remaining limitations
+
+Anything Reviewer 2 is asking for that the notebook still cannot support.
+
+---
+
+# FINAL RULE
+
+*Do not edit the paper based on assumptions.*
+
+First make the notebook scientifically correct.
+
+Then produce the new results.
+
+Then we will separately revise the paper using those results.
+
+If a requested reviewer requirement cannot be satisfied by the existing outputs, explicitly state:
+
+	⁠*“This is not currently supported by the existing notebook outputs and requires a new run/experiment.”*
+
+Do not fabricate a workaround or imply that an existing result answers a question it does not answer.
+
+---
+
+### One additional instruction for you
+
+While implementing this, *do not silently correct unrelated discrepancies in the paper*, such as the paper's four-class formulation versus the notebook's actual three-class neural output. That is a separate methodological issue and should not be mixed into the Reviewer 2 revision unless it directly affects the Reviewer 2 experiment.
+
+The current task is to produce the strongest, leakage-free, matched, uncertainty-aware experimental evidence possible for Reviewer 2.
+
+---
+
+I think this prompt is appropriately strict. The key thing I deliberately built into it is the *two-stage strategy: first get the existing models onto the common 180-record test set, *then do the expensive repeated retraining. That way your teammate won't burn GPU time before we know exactly what the corrected comparison looks like.
