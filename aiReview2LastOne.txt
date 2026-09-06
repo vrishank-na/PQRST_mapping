@@ -1,0 +1,783 @@
+Yes. Based on the **actual current notebook** and Reviews 3–6, I would give your friend the following single master prompt. It deliberately treats the current notebook as a starting point, not as automatically correct, and it tells him not to fabricate results.
+
+---
+
+# MASTER IMPLEMENTATION PROMPT — REVIEWS 3, 4, 5 AND 6
+
+We are revising the paper:
+
+**“Physiologically Guided R-Centered Deep Learning for ECG Wave Delineation Across Heterogeneous Databases”**
+
+You have the current notebook:
+
+`reviewer2_matched_metrics (1)(1).ipynb`
+
+We have already worked substantially on Reviewer 2. Your task now is to extend the experimental/reproducibility work to **fully and rigorously address Reviewer 3, Reviewer 4, Reviewer 5, and Reviewer 6**.
+
+## MOST IMPORTANT RULE
+
+Do **not** manipulate, cherry-pick, tune, or modify results to make the paper look better.
+
+Every result must be classified internally as:
+
+* existing result
+* newly generated result
+* validation/audit result
+* interpretation
+
+If something cannot be supported by the current implementation, **say so and implement the necessary experiment/retraining rather than inventing a result.**
+
+The final goal is not simply to add text to the paper. We need a scientifically defensible experimental package from which the paper can be rewritten.
+
+---
+
+# PART A — REVIEWER 3: MATCHED ABLATION
+
+Reviewer 3 says:
+
+> “If possible, the author(s) shall conduct a matched ablation that isolates each proposed component... Use one fixed baseline, split, and training procedure, then add the R audit, POST320 context, temporal channel, and target adaptation one at a time. The R5 improvement over R3 is only 0.0030 Macro F1, so repeated-run variability and statistical uncertainty are essential before claiming an improvement.”
+
+## A1. Build a true matched ablation
+
+Do not simply compare the existing R1–R6 definitions because the reviewer is correct that the current progression does not isolate individual components.
+
+Use:
+
+### Fixed experimental foundation
+
+Keep these identical across all ablation variants:
+
+* same QTDB record-level 84/21 train/validation split
+* same LUDB 20-record adaptation / 180-record untouched test split
+* same preprocessing
+* same normalization procedure
+* same model architecture unless the component being tested specifically requires an architectural change
+* same optimizer
+* same learning rate
+* same batch size
+* same number of epochs
+* same checkpoint selection rule
+* same random seeds
+* same evaluation records
+* same metrics
+
+The **180 LUDB test records must remain completely untouched for model selection and hyperparameter tuning.**
+
+### A2. Define the ablation sequentially
+
+Implement a clean progression where exactly one proposed component is introduced at each stage.
+
+The intended conceptual progression is:
+
+**A0 — Fixed baseline**
+
+Baseline model using the common training/evaluation procedure.
+
+**A1 — Baseline + R-related component**
+
+Add the R-audit/R-guidance component being claimed as a methodological contribution.
+
+Be extremely precise about what “R audit” means in the implementation. If the reviewer is referring to the deterministic R-peak detection/guidance mechanism, isolate that mechanism rather than accidentally changing multiple things.
+
+**A2 — A1 + POST320 context**
+
+Change only the post-R context from POST240 to POST320.
+
+Everything else must remain unchanged.
+
+**A3 — A2 + temporal channel**
+
+Add only the normalized temporal-position channel:
+
+$$
+t_i = \frac{i-PRE}{POST}
+$$
+
+with the R peak at \(t=0\).
+
+**A4 — A3 + supervised LUDB target adaptation**
+
+Add only the supervised target-domain adaptation using the fixed 20-record LUDB adaptation subset.
+
+The 180 LUDB test records remain untouched.
+
+### A3. Important clarification
+
+Do **not** force the old R1/R2/R3/R4/R5/R6 labels onto this ablation if doing so prevents true component isolation.
+
+You may create clearly named ablation variants such as:
+
+* A0
+* A1
+* A2
+* A3
+* A4
+
+while retaining R1–R6 as the original experimental nomenclature where useful.
+
+The paper should clearly distinguish:
+
+> original model configurations
+
+from
+
+> matched component-isolation ablations.
+
+### A4. Repeated runs
+
+Because the reviewer specifically highlights the tiny R5-vs-R3 difference, run the matched ablation over **at least 5 fixed seeds**.
+
+Use the same five seeds for every ablation variant.
+
+For every variant report:
+
+* P precision
+* P recall
+* P F1
+* T precision
+* T recall
+* T F1
+* Macro F1
+* Weighted F1
+* Accuracy
+
+If the final target definition supports QRS as a predicted class, include QRS metrics as well.
+
+### A5. Statistical reporting
+
+For every ablation variant calculate:
+
+* mean
+* sample SD
+* 95% CI
+
+across the independent training seeds.
+
+Also calculate paired differences between successive variants, especially:
+
+* A1 − A0
+* A2 − A1
+* A3 − A2
+* A4 − A3
+
+and preferably:
+
+* A4 − A0
+
+For each difference report:
+
+* per-seed difference
+* mean difference
+* SD
+* 95% CI
+
+Do not call an improvement meaningful simply because the mean is numerically higher.
+
+If the CI includes zero, state that the improvement is uncertain.
+
+---
+
+# PART B — REVIEWER 4: BOUNDARY-LEVEL EVALUATION
+
+Reviewer 4 requests much more than sample-wise Macro F1.
+
+They want actual delineation quality:
+
+* sensitivity
+* PPV
+* onset error bias
+* onset error SD
+* offset error bias
+* offset error SD
+* P/QRS/T
+* stated matching tolerance
+* missed waves
+* false waves
+* per-record/pathology analysis.
+
+## B1. First resolve the current target-definition problem
+
+The current implementation collapses:
+
+* QRS → Background
+
+and therefore the existing model is fundamentally a **3-class P/T/background segmentation model**.
+
+Do NOT pretend this provides QRS delineation metrics.
+
+You must determine the scientifically correct way to satisfy Reviewer 4.
+
+If QRS boundary delineation is required from the model, implement the necessary **4-class target representation**:
+
+* Background
+* P
+* QRS
+* T
+
+and retrain the relevant models/ablations under the final protocol.
+
+Do not derive fake QRS predictions from the background class merely to generate a table.
+
+If you determine that QRS cannot legitimately be evaluated from the existing model architecture/output, explicitly document this limitation and do not claim that the existing model performs QRS delineation.
+
+The preferred solution, if computationally feasible, is to perform the proper 4-class delineation experiment and report it transparently.
+
+## B2. Define event-level matching precisely
+
+Implement a proper event-level evaluation.
+
+For each predicted wave and ground-truth wave:
+
+* identify onset
+* identify offset
+* match predicted events to reference events using a clearly stated tolerance.
+
+Use a fixed tolerance in milliseconds and document it in the notebook and paper.
+
+Do NOT tune this tolerance on the LUDB test set.
+
+The matching rule must be deterministic and applied identically across all models.
+
+For each class:
+
+### Detection
+
+Calculate:
+
+* TP
+* FP
+* FN
+* sensitivity/recall
+* PPV/precision
+* F1
+* missed-wave count/rate
+* false-wave count/rate
+
+### Boundary errors
+
+For correctly matched events calculate:
+
+$$
+e_{onset}=predicted\ onset-reference\ onset
+$$
+
+$$
+e_{offset}=predicted\ offset-reference\ offset
+$$
+
+Then report:
+
+* mean onset error = bias
+* onset-error SD
+* mean offset error = bias
+* offset-error SD
+* optionally median and MAE as supplementary metrics
+
+All timing errors must be reported in **milliseconds**, not samples.
+
+Account correctly for each database's sampling frequency.
+
+## B3. Do this separately for
+
+* P
+* QRS
+* T
+
+Do not flatten all event coordinates across beats without preserving the record/beat/time offset.
+
+The previous notebook's event-boundary implementation had a serious coordinate issue; replace it with a proper event-level implementation.
+
+## B4. Per-record analysis
+
+Generate a per-record table containing, at minimum:
+
+* record ID
+* number of reference waves
+* number of detected waves
+* sensitivity
+* PPV
+* F1
+* onset bias
+* onset SD
+* offset bias
+* offset SD
+
+for each wave type.
+
+Then summarize across records.
+
+Do not allow records with many beats to dominate the record-level summary without explicitly distinguishing:
+
+* sample-level aggregation
+* event-level aggregation
+* record-level aggregation.
+
+## B5. Pathology analysis
+
+For LUDB, determine whether the available record metadata supports grouping by pathology/diagnostic category.
+
+If reliable pathology labels are available, report performance by pathology/group.
+
+If they are not reliably available in the current data, **do not invent pathology categories**. State that pathology-stratified analysis is unavailable and provide the record-level analysis instead.
+
+## B6. Figures
+
+Figures 3 and 4 remain illustrative examples only.
+
+Do not use them as evidence replacing the quantitative analysis.
+
+If useful, add one representative correctly matched boundary example, but the complete numerical tables are the actual response to Reviewer 4.
+
+---
+
+# PART C — REVIEWER 5: EXTERNAL VALIDATION
+
+Reviewer 5 asks for a rigorous explanation of QTDB → LUDB domain shift.
+
+Create an explicit external-validation section in the notebook and later in the paper.
+
+## C1. Sampling frequency
+
+Document exactly:
+
+### QTDB
+
+* original sampling frequency
+* preprocessing performed
+* window representation
+
+### LUDB
+
+* original sampling frequency
+* conversion to 250 Hz
+* exact resampling method
+* annotation-coordinate conversion
+
+Verify that annotation positions are transformed consistently with the signal.
+
+Do not simply state that the datasets were “normalized.”
+
+Explain the actual pipeline.
+
+## C2. Lead selection
+
+Explicitly state the lead-selection rule.
+
+For QTDB, use the actual implemented rule and verify which channel is selected.
+
+Do not call it MLII unless the record metadata/code actually confirms MLII.
+
+For LUDB, document that Lead II is selected using the record's lead metadata.
+
+If only one lead is used per record, clearly state that.
+
+## C3. Multiple leads / correlation
+
+State whether multiple leads from the same record are treated as independent observations.
+
+If the experiment uses only one lead per record, say so explicitly:
+
+> Each record contributes one selected lead; therefore no multiple-lead observations from the same record are treated as independent samples.
+
+If any experiment uses multiple leads, keep all leads from a record in the same partition and explain the correlation issue.
+
+## C4. Morphology and annotation differences
+
+Document differences between QTDB and LUDB concerning:
+
+* sampling frequency
+* lead configuration
+* morphology
+* annotation conventions
+* annotation granularity
+* record characteristics.
+
+Explain what preprocessing was performed to make the input compatible.
+
+Do not claim that preprocessing eliminates biological/domain differences.
+
+Those differences are part of the external-validation challenge.
+
+---
+
+# PART D — R-PEAK DETECTOR AUDIT
+
+This is especially important because the framework depends on deterministic R peaks.
+
+## D1. Evaluate R detection independently
+
+Run the deterministic R detector separately on:
+
+* QTDB
+* LUDB
+
+using the exact same detector.
+
+Do not use the model's performance to infer R-detector performance.
+
+Report for each database:
+
+* number of reference R peaks
+* number of detected R peaks
+* TP
+* FP
+* FN
+* precision
+* recall/sensitivity
+* F1
+* timing error in milliseconds
+
+Use a clearly stated R-peak matching tolerance.
+
+The tolerance must be fixed in advance and identical across databases.
+
+## D2. Per-record R detection
+
+Generate per-record R detector statistics.
+
+At minimum:
+
+* record ID
+* reference R count
+* detected R count
+* precision
+* recall
+* F1
+* median timing error
+* mean/absolute timing error if appropriate.
+
+This lets us identify records where R detection is poor.
+
+## D3. Downstream impact
+
+Quantify how R detector errors affect delineation.
+
+At minimum distinguish:
+
+* correctly R-centered windows
+* missed R peaks
+* extra R peaks
+
+and explain what happens downstream.
+
+For example:
+
+* missed R → corresponding cardiac cycle may not generate a model window
+* extra R → additional incorrectly centered window
+* timing error → P/T temporal positioning shifts relative to the detected R.
+
+Where computationally practical, provide a small sensitivity analysis comparing downstream delineation under:
+
+1. normal detected R peaks
+2. reference/annotated R alignment
+
+This should be clearly labelled as an **analysis/audit**, not part of the deployable pipeline.
+
+Do not silently substitute reference R peaks for detected R peaks in the main reported results.
+
+---
+
+# PART E — ESTABLISHED-DELINEATOR COMPARISON
+
+Reviewer 5 says that calling the method “competitive” is premature without a fair comparison.
+
+Therefore:
+
+## E1. If a reliable established delineator can be implemented
+
+Identify one or more established ECG delineation methods that can legitimately be evaluated under the same protocol.
+
+The comparison must use:
+
+* same LUDB test records
+* same lead
+* same preprocessing where applicable
+* same sampling representation
+* same annotation reference
+* same matching tolerance
+* same event definitions
+* same metrics.
+
+Do not compare our model's Macro F1 against another paper's number obtained using different records or metrics.
+
+## E2. Comparison table
+
+Create a table containing:
+
+| Method | Dataset | Lead | Preprocessing | P Sensitivity | P PPV | QRS Sensitivity | QRS PPV | T Sensitivity | T PPV | Onset/Offset metrics |
+| ------ | ------- | ---- | ------------- | ------------- | ----- | --------------- | ------- | ------------- | ----- | -------------------- |
+
+Only populate fields that can genuinely be reproduced.
+
+If no fair established-delineator implementation can be obtained/reproduced within the project constraints, do not fabricate or use incomparable literature numbers as if they were a direct benchmark.
+
+Instead state:
+
+> A directly matched external delineator comparison was not performed; therefore claims of competitiveness are not made.
+
+Then remove/rewrite any “competitive” wording accordingly.
+
+---
+
+# PART F — REVIEWER 6: CLAIMS AND SCIENTIFIC INTERPRETATION
+
+Reviewer 6 is fundamentally questioning whether our experiments actually prove the central claim.
+
+Do NOT rewrite the paper until the experiments above are complete.
+
+The new results must determine what we are actually allowed to claim.
+
+## F1. Do not assume progressive improvement
+
+The paper currently risks implying:
+
+> R1 → R2 → R3 → R4 → R5 → R6 = progressively better physiological guidance.
+
+That is not automatically justified.
+
+The matched ablation must determine whether:
+
+* R guidance helps
+* POST320 helps
+* temporal information helps
+* LUDB adaptation helps
+* effects are statistically reliable
+* some components hurt performance.
+
+If a component hurts performance, report it honestly.
+
+## F2. R3 vs R5
+
+The reviewer explicitly mentions that the original R5 improvement over R3 was only 0.0030 Macro F1.
+
+Therefore do not describe this as a meaningful improvement unless repeated-run analysis supports it.
+
+Report:
+
+* R3 mean ± SD
+* R5 mean ± SD
+* 95% CIs
+* paired per-seed difference
+* interpretation of whether the difference is robust.
+
+## F3. Fixed-test-set results
+
+All principal models/ablations must ultimately be evaluated on the **same untouched LUDB test records**.
+
+The final main comparison should not mix:
+
+* all 200 LUDB records for one model
+* 180 records for another.
+
+The final comparison must use the same test records.
+
+---
+
+# PART G — REPRODUCIBILITY PACKAGE
+
+Reviewer 6 specifically requests:
+
+* code
+* trained weights
+* record lists
+* split files.
+
+Create a reproducibility directory containing:
+
+### 1. Split manifest
+
+Save:
+
+* QTDB train IDs
+* QTDB validation IDs
+* LUDB adaptation IDs
+* LUDB test IDs
+
+### 2. Configuration
+
+Save a machine-readable configuration containing:
+
+* sampling rates
+* lead rules
+* PRE
+* POST
+* model architecture
+* optimizer
+* learning rate
+* batch size
+* epochs
+* seeds
+* loss functions
+* R detector settings
+* R matching tolerance
+* boundary matching tolerance
+* adaptation settings.
+
+### 3. Training provenance
+
+For every seed/model save:
+
+* seed
+* best epoch
+* best validation loss
+* normalization statistics
+* checkpoint path
+* training configuration.
+
+### 4. Trained weights
+
+Save the final weights for every required model/ablation and seed.
+
+### 5. Results
+
+Save CSV/JSON files containing:
+
+* sample-level metrics
+* event-level metrics
+* record-level metrics
+* seed-level metrics
+* mean/SD/CI summaries
+* R-detector metrics
+* ablation differences.
+
+---
+
+# PART H — COMPUTATIONAL EFFICIENCY / CRASH RECOVERY
+
+The previous notebook's 5-seed training was extremely long and crashed.
+
+Do NOT simply restart everything from zero.
+
+Implement **checkpointed/resumable training**.
+
+For every:
+
+* seed
+* model
+* epoch
+
+save enough information to resume safely.
+
+At minimum save:
+
+* model state
+* optimizer state
+* current epoch
+* best validation loss
+* best model state
+* seed
+* experiment name.
+
+If the process crashes after R1/R2/R3 etc., the next execution should detect completed experiments and continue from the correct point.
+
+Do not accidentally restart already completed training.
+
+Also print a clear progress summary such as:
+
+`Seed 1 / 5 → R1 complete → R2 complete → ...`
+
+At the end of every seed save the results immediately rather than waiting until all five seeds finish.
+
+This is essential.
+
+---
+
+# PART I — FINAL VALIDATION CHECKLIST
+
+Before declaring the work complete, run an explicit audit and print PASS/FAIL for every item:
+
+### Reviewer 3
+
+* [ ] Matched ablation implemented
+* [ ] One component added at a time
+* [ ] Same split across variants
+* [ ] Same training protocol
+* [ ] Same LUDB test records
+* [ ] Five seeds
+* [ ] Mean/SD/95% CI
+* [ ] Per-seed paired differences
+* [ ] R3/R5 uncertainty explicitly quantified
+
+### Reviewer 4
+
+* [ ] Event-level matching implemented correctly
+* [ ] Matching tolerance explicitly stated
+* [ ] P sensitivity/PPV
+* [ ] QRS sensitivity/PPV
+* [ ] T sensitivity/PPV
+* [ ] onset bias/SD
+* [ ] offset bias/SD
+* [ ] missed waves
+* [ ] false waves
+* [ ] per-record results
+* [ ] pathology analysis if supported
+* [ ] no coordinate-flattening bug
+* [ ] errors reported in milliseconds
+
+### Reviewer 5
+
+* [ ] QTDB sampling frequency documented
+* [ ] LUDB sampling frequency documented
+* [ ] resampling documented
+* [ ] annotation scaling verified
+* [ ] lead selection explicitly documented
+* [ ] multiple-lead correlation addressed
+* [ ] morphology/annotation differences discussed
+* [ ] R detector evaluated on QTDB
+* [ ] R detector evaluated on LUDB
+* [ ] R precision/recall/F1
+* [ ] R timing error
+* [ ] missed/extra R peaks quantified
+* [ ] downstream impact discussed
+* [ ] fair external delineator comparison OR explicit limitation
+* [ ] no unsupported “competitive” claim
+
+### Reviewer 6
+
+* [ ] Matched fixed-test analysis complete
+* [ ] Claims based on actual results
+* [ ] No unsupported progressive-improvement claim
+* [ ] R3/R5 difference interpreted cautiously
+* [ ] Abstract rewritten
+* [ ] Discussion rewritten
+* [ ] Conclusion rewritten
+* [ ] limitations updated
+* [ ] reproducibility package generated
+
+---
+
+# VERY IMPORTANT: DO NOT EDIT THE PAPER YET
+
+First finish the computational work.
+
+At the end, produce a final machine-readable summary:
+
+### `FINAL_REVIEWER_3_4_5_6_RESULTS`
+
+containing:
+
+1. Final ablation table
+2. Five-seed results
+3. Mean/SD/95% CI
+4. Paired differences
+5. Boundary metrics
+6. R-detector metrics
+7. Record-level metrics
+8. External-comparison table if available
+9. Exact split IDs
+10. Exact experiment configuration
+11. List of completed checkpoints
+12. List of anything that could **not** be completed
+
+Then give a final verdict:
+
+**REVIEWER 3: PASS / INCOMPLETE**
+**REVIEWER 4: PASS / INCOMPLETE**
+**REVIEWER 5: PASS / INCOMPLETE**
+**REVIEWER 6: PASS / INCOMPLETE**
+
+Do not call something PASS merely because code exists. It is PASS only when the implementation has actually executed successfully and produced valid results.
+
+If any requirement cannot be scientifically satisfied without changing the experiment definition, explicitly flag it before proceeding rather than silently improvising.
+
+**The objective is a defensible paper, not artificially improved metrics.**
