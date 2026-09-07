@@ -1,0 +1,1336 @@
+Absolutely. I reviewed the **original `ML2_COMPLETION (1).ipynb` again**, not just the newer notebook, and I would use the original notebook as the authoritative base. The prompt below is deliberately structured so your friend **extends/fixes that notebook rather than creating another parallel implementation**.
+
+One important correction from our previous attempts: **do not assume that implementing code = satisfying the review.** Every requested item must have an actual executed result or be explicitly marked as not feasible.
+
+You can paste the following directly into your friend's chat:
+
+---
+
+# MASTER TASK — EXTEND `ML2_COMPLETION` TO FULLY ADDRESS REVIEWERS 2, 3, 4, 5 AND 6
+
+You are working on the ECG paper:
+
+**“Physiologically Guided R-Centered Deep Learning for ECG Wave Delineation Across Heterogeneous Databases”**
+
+The authoritative existing implementation is the uploaded:
+
+**`ML2_COMPLETION (1).ipynb`**
+
+Your task is to **extend and carefully modify this existing notebook**, not create a disconnected replacement notebook.
+
+We need one final, reproducible experimental notebook that addresses **every substantive requirement of Reviewers 2, 3, 4, 5, and 6**.
+
+---
+
+# 0. NON-NEGOTIABLE SCIENTIFIC RULES
+
+Before doing anything:
+
+### Rule 1 — Do not fabricate results
+
+Never invent:
+
+* metrics
+* confidence intervals
+* statistical significance
+* pathology results
+* R-detector performance
+* boundary errors
+* external-method comparisons
+* completed seeds.
+
+If something cannot be obtained from the data/code, explicitly report:
+
+> NOT IMPLEMENTED / NOT SUPPORTED BY CURRENT DATA
+
+and explain why.
+
+### Rule 2 — Do not optimize for better numbers
+
+Do not:
+
+* cherry-pick seeds
+* cherry-pick records
+* tune on the LUDB test set
+* modify thresholds after seeing test performance
+* remove bad records because they hurt performance
+* select the best seed for reporting
+* change preprocessing selectively between models.
+
+If performance becomes worse after fixing the protocol, **report the worse result**.
+
+### Rule 3 — Existing R1–R6 definitions are not automatically a valid matched ablation
+
+The original notebook's R1–R6 experiments were exploratory sequential experiments.
+
+Reviewer 3 specifically asks for a **matched component-isolation experiment**.
+
+Therefore preserve the original R1–R6 experiments for historical/reference purposes, but add a separate, explicitly named matched ablation experiment.
+
+---
+
+# 1. FIRST FIX THE DATA/SPLIT PIPELINE
+
+The current notebook generates windows and uses record IDs for partitioning. Rewrite this cleanly so that the conceptual order is:
+
+```text
+DATABASE
+↓
+LIST RECORDS
+↓
+SPLIT RECORDS
+↓
+LOAD EACH PARTITION'S RECORDS
+↓
+R-DETECT
+↓
+GENERATE LABELS
+↓
+CREATE WINDOWS
+↓
+NORMALIZE USING TRAINING DATA ONLY
+↓
+TRAIN / VALIDATE / TEST
+```
+
+Never:
+
+```text
+all records
+→ create overlapping windows
+→ randomly split windows
+```
+
+## QTDB
+
+Verify that the dataset contains the expected full set of **105 records**.
+
+Create:
+
+* 84 QTDB training records
+* 21 QTDB validation records
+
+using the existing intended split:
+
+```python
+test_size=0.20
+random_state=7
+shuffle=True
+```
+
+Save the exact record IDs.
+
+## LUDB
+
+Use all 200 records.
+
+Create:
+
+* 20 LUDB adaptation records
+* 180 LUDB untouched test records
+
+using:
+
+```python
+R6_ADAPT_FRACTION = 0.10
+random_state = 17
+```
+
+Save the exact record IDs.
+
+### IMPORTANT
+
+The 180 LUDB test records must:
+
+* never participate in training
+* never participate in adaptation
+* never participate in threshold tuning
+* never participate in hyperparameter selection
+* never influence model architecture decisions.
+
+---
+
+# 2. CREATE AN EXPLICIT SPLIT MANIFEST
+
+Save something like:
+
+```text
+reviewer_splits/
+    qtdb_train_records.txt
+    qtdb_validation_records.txt
+    ludb_adaptation_records.txt
+    ludb_test_records.txt
+    split_manifest.json
+```
+
+The JSON should include:
+
+* dataset
+* record IDs
+* split seed
+* number of records
+* sampling information
+* experiment version.
+
+Add assertions:
+
+```python
+assert set(train_records).isdisjoint(val_records)
+assert set(r6_adapt_records).isdisjoint(r6_test_records)
+```
+
+Also verify every record appears exactly once in its relevant partition.
+
+Print:
+
+```text
+QTDB: 84 train / 21 validation
+LUDB: 20 adaptation / 180 test
+```
+
+---
+
+# 3. NORMALIZATION MUST BE TRAIN-ONLY
+
+For every experiment:
+
+* calculate mean/std using QTDB training records/windows only
+* use those statistics for QTDB validation
+* use those same statistics for LUDB external evaluation.
+
+Do not calculate normalization using:
+
+* LUDB adaptation + test
+* LUDB test
+* QTDB validation.
+
+Save:
+
+```text
+normalization_mean
+normalization_std
+```
+
+to the experiment manifest.
+
+---
+
+# 4. AUDIT WHETHER LUDB TEST INFORMATION INFLUENCED DECISIONS
+
+Create an explicit audit section.
+
+For:
+
+* R4 threshold
+* model architecture
+* learning rate
+* epochs
+* adaptation epochs
+* window length
+* loss function
+* preprocessing
+
+state where the decision was made.
+
+The notebook must demonstrate:
+
+```text
+QTDB validation → model selection / R4 threshold
+LUDB adaptation → R6 adaptation only
+LUDB test → final evaluation only
+```
+
+No LUDB test metric may influence any decision.
+
+---
+
+# 5. REVIEWER 3 — MATCHED COMPONENT ABLATION
+
+This is separate from simply reporting R1–R6.
+
+Create a clean matched ablation.
+
+Use one fixed:
+
+* QTDB split
+* LUDB split
+* preprocessing
+* normalization
+* architecture where applicable
+* optimizer
+* learning rate
+* batch size
+* training epochs
+* checkpoint rule
+* evaluation protocol
+* five random seeds.
+
+Construct the progression:
+
+### A0 — Fixed baseline
+
+Use the baseline neural segmentation configuration.
+
+### A1 — Add R-related guidance/audit component
+
+Add only the R-related component being evaluated.
+
+### A2 — Add POST320 context
+
+Change only:
+
+```text
+POST = 240
+→
+POST = 320 samples
+```
+
+Everything else stays fixed.
+
+### A3 — Add temporal channel
+
+Add:
+
+$$
+t_i = \frac{i-PRE}{POST}
+$$
+
+so that R is at:
+
+$$
+t=0
+$$
+
+Do not use an incorrect `-1/+1` interpretation.
+
+### A4 — Add supervised LUDB adaptation
+
+Start from A3 and perform supervised adaptation using **only the 20 LUDB adaptation records**.
+
+Evaluate on the same untouched 180 LUDB records.
+
+---
+
+# 6. FIVE-SEED ABLATION
+
+Use exactly the same five seeds for every A0–A4 experiment.
+
+Define one global seed function controlling:
+
+* Python random
+* NumPy
+* PyTorch
+* CUDA if available
+* DataLoader randomness
+* model initialization.
+
+Do not change seeds between experiments.
+
+For each:
+
+```text
+A0
+A1
+A2
+A3
+A4
+```
+
+produce five independent runs.
+
+---
+
+# 7. REPORT ABLATION STATISTICS
+
+For every variant calculate:
+
+* P precision
+* P recall
+* P F1
+* T precision
+* T recall
+* T F1
+* Background precision/recall/F1
+* Macro F1
+* weighted F1
+* accuracy
+
+If QRS is properly represented as a predicted class after fixing the target representation, include QRS as well.
+
+For each metric report:
+
+```text
+mean
+SD
+95% CI
+```
+
+across seeds.
+
+Also calculate paired differences:
+
+```text
+A1 − A0
+A2 − A1
+A3 − A2
+A4 − A3
+A4 − A0
+```
+
+with:
+
+* each seed's difference
+* mean difference
+* SD
+* 95% CI.
+
+Do not claim improvement if uncertainty does not support it.
+
+---
+
+# 8. IMPORTANT — REVIEWER 4 REQUIRES TRUE BOUNDARY EVALUATION
+
+The current model uses:
+
+```text
+Background
+P
+T
+```
+
+with QRS collapsed into background.
+
+This is insufficient to honestly report QRS delineation boundaries.
+
+Therefore decide explicitly:
+
+### Preferred solution
+
+Implement proper four-class delineation:
+
+```text
+0 Background
+1 P
+2 QRS
+3 T
+```
+
+and retrain the required experiments.
+
+Do not manufacture QRS metrics from the background class.
+
+If four-class retraining is computationally impossible, do not fake QRS results. Clearly document the limitation and adjust the paper's claims accordingly.
+
+---
+
+# 9. IMPLEMENT TRUE EVENT-LEVEL BOUNDARY MATCHING
+
+Create a robust event-matching function.
+
+For every:
+
+* P wave
+* QRS complex
+* T wave
+
+extract:
+
+```text
+reference onset
+reference offset
+
+predicted onset
+predicted offset
+```
+
+Match predicted/reference events using a **fixed stated tolerance**.
+
+Choose and document the tolerance before looking at LUDB test performance.
+
+Use the same matching rule for every model.
+
+Do NOT flatten event coordinates across different beats/records.
+
+Every event must retain:
+
+```text
+dataset
+record
+beat/event identity
+wave class
+absolute/local time
+```
+
+---
+
+# 10. BOUNDARY METRICS
+
+For P/QRS/T separately report:
+
+### Detection
+
+* TP
+* FP
+* FN
+* sensitivity
+* PPV
+* F1
+* missed waves
+* false waves.
+
+### Boundary timing
+
+For matched waves:
+
+$$
+e_{onset}=predicted\ onset-reference\ onset
+$$
+
+$$
+e_{offset}=predicted\ offset-reference\ offset
+$$
+
+Report in **milliseconds**:
+
+* onset bias / mean
+* onset SD
+* offset bias / mean
+* offset SD.
+
+Optionally also report:
+
+* MAE
+* median absolute error.
+
+Clearly distinguish:
+
+```text
+sample-wise segmentation metrics
+vs
+event-level delineation metrics
+```
+
+---
+
+# 11. PER-RECORD BOUNDARY RESULTS
+
+Create a CSV:
+
+```text
+boundary_metrics_per_record.csv
+```
+
+with at least:
+
+* record
+* wave type
+* reference event count
+* predicted event count
+* TP
+* FP
+* FN
+* sensitivity
+* PPV
+* F1
+* onset bias
+* onset SD
+* offset bias
+* offset SD.
+
+Then summarize across records.
+
+Do not allow records with more beats to silently dominate a record-level statistic.
+
+---
+
+# 12. PATHOLOGY ANALYSIS
+
+Check whether LUDB provides reliable diagnostic/pathology metadata.
+
+If yes:
+
+* map records to pathology/group
+* report performance by pathology.
+
+If not:
+
+**do not invent pathology labels.**
+
+Instead report:
+
+> Pathology-stratified analysis was not performed because reliable record-level pathology metadata were not available in the experimental data.
+
+Record-level analysis must still be supplied.
+
+---
+
+# 13. REVIEWER 5 — EXTERNAL VALIDATION PROTOCOL
+
+Add an explicit dataset compatibility section.
+
+## QTDB
+
+Document:
+
+* native sampling frequency
+* selected lead
+* annotation source
+* preprocessing
+* R detection
+* windowing.
+
+## LUDB
+
+Document:
+
+* original sampling frequency
+* selected lead
+* resampling method
+* annotation conversion
+* R detection
+* windowing.
+
+For LUDB verify:
+
+```text
+500 Hz → 250 Hz
+```
+
+and that annotation coordinates are transformed consistently.
+
+---
+
+# 14. LEAD-SELECTION RULE
+
+State exactly which lead is used.
+
+Do not call the QTDB lead MLII unless the actual record metadata confirms this.
+
+For LUDB, document the actual implemented Lead II selection.
+
+If only one lead is used per record, explicitly state:
+
+> Each record contributes one selected lead; therefore multiple leads from the same record are not treated as independent observations.
+
+If multiple leads are ever used:
+
+* keep all leads from the same record in one partition
+* do not treat them as independent patients.
+
+---
+
+# 15. EXPLAIN QTDB → LUDB DOMAIN SHIFT
+
+Add a concise but technically accurate analysis of:
+
+* sampling frequency
+* lead structure
+* morphology
+* annotation practice
+* annotation granularity
+* record characteristics.
+
+Explain which differences are handled by preprocessing and which remain genuine domain differences.
+
+Do not claim preprocessing removes biological/domain shift.
+
+---
+
+# 16. R-DETECTOR AUDIT — BOTH DATABASES
+
+The framework depends on deterministic R peaks.
+
+Evaluate the exact R detector separately on:
+
+### QTDB
+
+and
+
+### LUDB.
+
+Use annotated R references where available.
+
+Use a fixed matching tolerance.
+
+Report:
+
+* reference R count
+* detected R count
+* TP
+* FP
+* FN
+* precision
+* recall
+* F1
+* timing error
+* median absolute timing error
+* mean/SD timing error where appropriate.
+
+---
+
+# 17. PER-RECORD R-DETECTOR RESULTS
+
+Create:
+
+```text
+r_detector_per_record.csv
+```
+
+containing:
+
+* dataset
+* record
+* reference R count
+* detected R count
+* TP
+* FP
+* FN
+* precision
+* recall
+* F1
+* timing error.
+
+Also summarize QTDB and LUDB separately.
+
+---
+
+# 18. R-DETECTOR ERROR → DOWNSTREAM EFFECT
+
+Explicitly analyze:
+
+### Missed R peak
+
+What happens to the corresponding cardiac-cycle window?
+
+### Extra R peak
+
+What happens when an incorrect window is created?
+
+### R timing error
+
+How does a shifted R peak change P/T relative temporal positioning?
+
+Where computationally feasible, perform a diagnostic comparison:
+
+```text
+normal detected R peaks
+vs
+reference R peaks
+```
+
+to estimate downstream sensitivity to R-detection error.
+
+This is an audit only.
+
+Do NOT replace detected R peaks with reference R peaks in the main deployable results.
+
+---
+
+# 19. REVIEWER 5 — FAIR ESTABLISHED-DELINEATOR COMPARISON
+
+If a reproducible established delineator can be implemented, evaluate it under the same conditions:
+
+* same LUDB records
+* same lead
+* same preprocessing where applicable
+* same sampling representation
+* same annotation reference
+* same matching tolerance
+* same event definitions
+* same metrics.
+
+Create a table such as:
+
+| Method | Records | Lead | Preprocessing | P Sens | P PPV | QRS Sens | QRS PPV | T Sens | T PPV | Boundary errors |
+| ------ | ------- | ---- | ------------- | ------ | ----- | -------- | ------- | ------ | ----- | --------------- |
+
+Do not compare our result to a literature number obtained using different records/metrics and call it a direct benchmark.
+
+If a fair external method cannot be reproduced, explicitly state this limitation and **remove/soften claims that the method is “competitive.”**
+
+---
+
+# 20. REVIEWER 6 — CLAIMS
+
+Do not assume the original hypothesis is proven.
+
+The original paper should NOT automatically say:
+
+> progressively refined physiological guidance improves cross-dataset generalization.
+
+Only say this if the matched ablation actually supports it.
+
+The results may instead show:
+
+* some components help
+* some components do nothing
+* some components hurt
+* adaptation provides the main gain
+* R guidance provides limited benefit.
+
+Whatever the experiments show, write the claims accordingly.
+
+---
+
+# 21. R3 VS R5
+
+The reviewer specifically points out the original ~0.0030 Macro F1 difference.
+
+Therefore explicitly analyze whether this difference survives repeated runs.
+
+Report:
+
+```text
+R3 mean ± SD
+R5 mean ± SD
+R3 95% CI
+R5 95% CI
+paired difference per seed
+mean paired difference
+95% CI of paired difference
+```
+
+Do not call R5 superior merely because:
+
+```text
+R5 mean > R3 mean
+```
+
+---
+
+# 22. FINAL FIXED LUDB TEST SET
+
+The main cross-dataset comparison must use the exact same:
+
+```text
+180 LUDB test records
+```
+
+for every applicable model.
+
+Do NOT report:
+
+```text
+R3 → 200 LUDB records
+R6 → 180 LUDB records
+```
+
+as a direct comparison.
+
+All principal model comparisons must use the common untouched test set.
+
+---
+
+# 23. POST320 CLARIFICATION
+
+The manuscript must explicitly say:
+
+> POST320 denotes 320 samples after the R peak, not 320 ms.
+
+At the standardized LUDB/QTDB 250-Hz representation:
+
+$$
+320\ samples = 1280\ ms
+$$
+
+If any database remains at another sampling rate during an experiment, state the exact interpretation.
+
+Do not write “POST320 ms.”
+
+---
+
+# 24. DATABASE NAMING
+
+Use **LUDB** consistently throughout:
+
+* notebook
+* result tables
+* figure captions
+* manuscript.
+
+Do not alternate between:
+
+```text
+LUDB
+LU Database
+```
+
+unless defining LUDB once.
+
+---
+
+# 25. FIGURES 3 AND 4
+
+Clarify:
+
+* class colors
+* Background
+* P
+* QRS if implemented
+* T
+* predicted vs ground truth.
+
+Explain exactly how displayed beats were selected.
+
+For example:
+
+* specify record-selection rule
+* specify whether beats were randomly selected
+* specify random seed
+* specify whether examples were representative or selected for illustration.
+
+Do not select examples because they make the model look good without saying so.
+
+Prefer a deterministic/random seeded selection rule.
+
+---
+
+# 26. MEMORY / RAM / CRASH PROBLEM — VERY IMPORTANT
+
+The previous reviewer notebooks repeatedly crashed because the complete ECG windows were being materialized simultaneously in RAM.
+
+Do NOT simply rerun the same pipeline.
+
+Redesign the implementation to be memory-efficient.
+
+## DO NOT HOLD EVERYTHING IN RAM
+
+Avoid patterns such as:
+
+```python
+X_all = np.concatenate(all_windows)
+Y_all = np.concatenate(all_labels)
+```
+
+for the entire database when unnecessary.
+
+Instead use:
+
+### Option A — disk-backed arrays
+
+Use:
+
+* NumPy memmap
+* HDF5
+* another reliable disk-backed format.
+
+Store:
+
+```text
+signals
+labels
+record IDs
+```
+
+on disk.
+
+### Option B — record-wise / batch-wise processing
+
+Prefer:
+
+```text
+record
+→ detect R
+→ create windows
+→ normalize
+→ train batches
+→ release arrays
+→ next record
+```
+
+where practical.
+
+---
+
+# 27. NEVER LOAD THE ENTIRE LUDB TEST SET INTO GPU/RAM FOR PREDICTION
+
+Use small batches:
+
+```python
+ANALYTICS_BATCH_SIZE = 8
+```
+
+or another safe size determined experimentally.
+
+Predictions should be accumulated carefully.
+
+After each batch:
+
+* transfer only required outputs to CPU
+* release GPU tensors
+* avoid retaining computation graphs.
+
+Use:
+
+```python
+torch.inference_mode()
+```
+
+for inference.
+
+---
+
+# 28. TRAINING DATA LOADERS
+
+Use efficient PyTorch loaders.
+
+Where appropriate:
+
+```python
+DataLoader(
+    dataset,
+    batch_size=...,
+    shuffle=True,
+    num_workers=...
+)
+```
+
+But be conservative with `num_workers` in Colab/Kaggle.
+
+Do not increase workers blindly because that can itself increase RAM consumption.
+
+---
+
+# 29. DELETE LARGE TEMPORARY OBJECTS
+
+After an experiment:
+
+```python
+del large_array
+gc.collect()
+```
+
+and if CUDA is being used:
+
+```python
+torch.cuda.empty_cache()
+```
+
+when appropriate.
+
+Do not keep:
+
+* predictions from every model
+* every seed's complete tensors
+* every epoch's outputs
+
+in memory.
+
+Save results to disk immediately.
+
+---
+
+# 30. CHECKPOINT EVERY TRAINING RUN
+
+Every model/seed must have resumable checkpoints.
+
+For example:
+
+```text
+checkpoints/
+    A0_seed1/
+        epoch_01.pth
+        ...
+        latest.pth
+        best.pth
+    A0_seed2/
+    ...
+```
+
+Checkpoint:
+
+* model state
+* optimizer state
+* epoch
+* best validation loss
+* seed
+* experiment name.
+
+If Colab crashes after Seed 2, rerunning the notebook must detect completed work and continue from Seed 3 rather than restarting everything.
+
+---
+
+# 31. SAVE RESULTS AFTER EVERY SEED
+
+Do not wait until all five seeds finish.
+
+After every completed seed:
+
+```text
+results/
+    seed_results.csv
+```
+
+must be updated.
+
+If the runtime dies, previously completed results survive.
+
+---
+
+# 32. MEMORY-SAFE EXPERIMENT ORDER
+
+Do NOT simultaneously keep:
+
+```text
+R1 + R2 + R3 + R4 + R5 + R6
+```
+
+models and datasets in memory.
+
+Run:
+
+```text
+one experiment
+→ save checkpoint
+→ save metrics
+→ delete model/data
+→ garbage collect
+→ next experiment
+```
+
+For the five seeds:
+
+```text
+Seed 1:
+ A0 → save → free
+ A1 → save → free
+ ...
+
+Seed 2:
+ ...
+```
+
+or another equally memory-safe order.
+
+Choose whichever minimizes recomputation while keeping RAM safe.
+
+---
+
+# 33. ADD A MEMORY TELEMETRY CELL
+
+Periodically print:
+
+* RAM usage
+* dataset size
+* number of windows
+* batch size
+* current model
+* current seed.
+
+If possible, stop before catastrophic RAM exhaustion and save the current checkpoint.
+
+---
+
+# 34. DO NOT RECOMPUTE DATA UNNECESSARILY
+
+Cache expensive deterministic preprocessing:
+
+* R peaks
+* labels
+* resampled LUDB signals
+* record splits
+* window indices.
+
+Do not repeatedly regenerate the same data for every seed if it can safely be stored on disk.
+
+The neural model should be the part being retrained across seeds—not the entire preprocessing pipeline.
+
+---
+
+# 35. FINAL RESULTS STRUCTURE
+
+Generate:
+
+```text
+reviewer_results/
+    reviewer2/
+    reviewer3/
+    reviewer4/
+    reviewer5/
+    reviewer6/
+```
+
+At minimum:
+
+```text
+split_manifest.json
+normalization.json
+
+seed_results.csv
+ablation_results.csv
+ablation_differences.csv
+
+boundary_metrics_per_record.csv
+boundary_summary.csv
+
+r_detector_per_record.csv
+r_detector_summary.csv
+
+external_comparison.csv
+
+experiment_config.json
+```
+
+---
+
+# 36. FINAL REVIEWER 2–6 AUDIT
+
+At the end of the notebook print a table:
+
+| Requirement                    | Status    | Evidence |
+| ------------------------------ | --------- | -------- |
+| R2 record-level split          | PASS/FAIL | ...      |
+| R2 no leakage                  | PASS/FAIL | ...      |
+| R2 fixed LUDB test             | PASS/FAIL | ...      |
+| R2 repeated seeds              | PASS/FAIL | ...      |
+| R2 CI                          | PASS/FAIL | ...      |
+| R3 matched ablation            | PASS/FAIL | ...      |
+| R3 component isolation         | PASS/FAIL | ...      |
+| R4 boundary metrics            | PASS/FAIL | ...      |
+| R4 P/QRS/T evaluation          | PASS/FAIL | ...      |
+| R4 onset/offset bias           | PASS/FAIL | ...      |
+| R4 per-record analysis         | PASS/FAIL | ...      |
+| R5 sampling-frequency analysis | PASS/FAIL | ...      |
+| R5 lead rule                   | PASS/FAIL | ...      |
+| R5 R-detector audit            | PASS/FAIL | ...      |
+| R5 downstream R-error analysis | PASS/FAIL | ...      |
+| R5 fair delineator comparison  | PASS/FAIL | ...      |
+| R6 fixed-test analysis         | PASS/FAIL | ...      |
+| R6 claims audit                | PASS/FAIL | ...      |
+| R6 reproducibility package     | PASS/FAIL | ...      |
+
+**PASS means the experiment actually ran and produced evidence.**
+
+Code existing without successful execution = **INCOMPLETE**.
+
+---
+
+# 37. FINAL PAPER-READY OUTPUT
+
+At the end generate a concise report containing:
+
+### Dataset
+
+```text
+QTDB: 105 records
+Train: 84
+Validation: 21
+
+LUDB: 200 records
+Adaptation: 20
+Untouched test: 180
+```
+
+### Ablation
+
+Provide A0–A4:
+
+```text
+mean
+SD
+95% CI
+```
+
+for every major metric.
+
+### Boundary analysis
+
+P/QRS/T:
+
+```text
+Sensitivity
+PPV
+F1
+Onset bias ± SD
+Offset bias ± SD
+Missed waves
+False waves
+```
+
+### R detector
+
+QTDB and LUDB:
+
+```text
+Precision
+Recall
+F1
+Timing error
+```
+
+### External comparison
+
+Only if genuinely fair and reproducible.
+
+### Reproducibility
+
+List:
+
+* code
+* checkpoints
+* record IDs
+* split files
+* configuration
+* seeds.
+
+---
+
+# 38. ONLY AFTER ALL EXPERIMENTS — PAPER REWRITE
+
+Do not rewrite the abstract/discussion/conclusion beforehand.
+
+Once results are complete, rewrite them based strictly on the evidence.
+
+The new wording must explicitly acknowledge:
+
+* what actually improved
+* what did not improve
+* uncertainty
+* external-validation limitations
+* effect of LUDB adaptation
+* R-detector limitations
+* boundary-level performance
+* whether progressive physiological guidance is actually supported.
+
+If the results do **not** support the original central claim, weaken the claim.
+
+That is preferable to overstating the science.
+
+---
+
+# 39. FINAL SUCCESS CONDITION
+
+Do not tell me:
+
+> “Most of the reviewer requirements have been implemented.”
+
+Instead give me:
+
+```text
+REVIEWER 2: PASS / INCOMPLETE
+REVIEWER 3: PASS / INCOMPLETE
+REVIEWER 4: PASS / INCOMPLETE
+REVIEWER 5: PASS / INCOMPLETE
+REVIEWER 6: PASS / INCOMPLETE
+```
+
+with the exact reason for every INCOMPLETE item.
+
+The notebook is considered complete only when:
+
+1. The corrected record-level split is verified.
+2. The common untouched LUDB test set is fixed.
+3. All relevant models/ablations use that same test set.
+4. Five-seed experiments have actually completed.
+5. Statistical uncertainty is calculated.
+6. Matched component ablation is completed.
+7. Boundary-level evaluation is correctly implemented.
+8. R detection is independently evaluated on QTDB and LUDB.
+9. External-validation differences are documented.
+10. Fair delineator comparison is performed if feasible, otherwise the competitiveness claim is removed.
+11. Reproducibility artifacts are saved.
+12. The entire pipeline can run without exhausting RAM.
+
+**Do not sacrifice scientific correctness for completion speed. Do not sacrifice reproducibility for better metrics. Do not manufacture missing results.**
+
+The final objective is a reviewer-defensible experiment, not merely a notebook that contains code for every requested item.

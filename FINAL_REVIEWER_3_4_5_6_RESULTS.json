@@ -1,0 +1,61 @@
+{
+  "report_name": "FINAL_REVIEWER_3_4_5_6_RESULTS",
+  "generated_at": "2026-09-07",
+  "notebook_checked": "PQRST_mapping/reviewer2_matched_metrics.ipynb",
+  "overall_status": "INCOMPLETE",
+  "evidence": {
+    "record_split_present": true,
+    "qt_split_84_21_present": true,
+    "ludb_split_20_180_present": true,
+    "train_only_normalization_present": true,
+    "matched_ablation_A0_A4_present": false,
+    "five_seed_repeated_runs_present": false,
+    "boundary_metrics_per_record_present": false,
+    "event_level_matching_present": false,
+    "qrs_four_class_retraining_present": false,
+    "r_detector_per_record_present": false,
+    "external_delineator_comparison_present": false,
+    "final_reviewer_audit_table_present": false,
+    "checkpoint_and_seed_artifacts_present": false
+  },
+  "reviewer_status": {
+    "REVIEWER_2": {
+      "status": "INCOMPLETE",
+      "reason": "The notebook contains the corrected record-level split and train-only normalization logic, but it does not show a completed five-seed final execution package and no explicit final reviewer audit table was found in the notebook source."
+    },
+    "REVIEWER_3": {
+      "status": "INCOMPLETE",
+      "reason": "The matched ablation A0-A4 sequence is not implemented in the current notebook, and the required five-seed mean/SD/95% CI paired-difference analysis is absent."
+    },
+    "REVIEWER_4": {
+      "status": "INCOMPLETE",
+      "reason": "No boundary_metrics_per_record artifact or event-level onset/offset evaluation is present, and the notebook still encodes the 3-class background/P/T target without a proper 4-class QRS retraining path."
+    },
+    "REVIEWER_5": {
+      "status": "INCOMPLETE",
+      "reason": "The notebook does not include a complete R-detector audit for QTDB and LUDB, no fair delineator comparison table is present, and no completed external-validation package was generated."
+    },
+    "REVIEWER_6": {
+      "status": "INCOMPLETE",
+      "reason": "There is no final claims audit, no fixed-test comparison package, no reproducibility artifact set, and no executed evidence supporting the central claim beyond the partial code structure."
+    }
+  },
+  "specific_missing_requirements": [
+    "A0-A4 matched ablation with one fixed foundation and five seeds",
+    "mean/SD/95% CI across seeds and paired differences A1-A0, A2-A1, A3-A2, A4-A3, A4-A0",
+    "boundary_metrics_per_record.csv and boundary_summary.csv outputs",
+    "proper QRS four-class target definition and retraining if required",
+    "event-level matching with a fixed tolerance and onset/offset error reporting in milliseconds",
+    "r_detector_per_record.csv and r_detector_summary.csv outputs",
+    "reviewer_results/reviewer3, reviewer4, reviewer5, reviewer6 artifact directories",
+    "final audit table with PASS/FAIL evidence",
+    "reproducibility artifacts including split files, normalization, config, seeds, and checkpoints"
+  ],
+  "verification_summary": [
+    "Notebook source contains the train/test_split logic and 84/21 and 20/180 record counts.",
+    "Notebook source does not contain A0/A1/A2/A3/A4 labels as implemented ablation variants.",
+    "Notebook source does not contain boundary_metrics_per_record, onset bias, or event-level matching terminology.",
+    "Notebook source does not contain r_detector_per_record or R detector audit flow.",
+    "Notebook source does not contain reviewer_results artifacts or final PASS/INCOMPLETE audit table."
+  ]
+}
