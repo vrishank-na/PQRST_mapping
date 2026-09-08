@@ -1,0 +1,43 @@
+{
+  "generated_at_utc": "2026-09-08T16:07:00.584647+00:00",
+  "status": "PASS",
+  "checks": {
+    "QTDB complete population": true,
+    "QTDB split 84/21": true,
+    "LUDB complete population": true,
+    "LUDB split 20/180": true,
+    "QTDB record disjointness": true,
+    "LUDB record disjointness": true,
+    "train-only normalization persisted": true,
+    "split manifest persisted": true,
+    "three seeds configured": true,
+    "matched-ablation 15-epoch protocol selected": true,
+    "three seeds completed": true
+  },
+  "profile": "matched_ablation",
+  "completed_seeds": [
+    1,
+    2,
+    3
+  ],
+  "dataset_counts": {
+    "qtdb_total": 105,
+    "qtdb_train": 84,
+    "qtdb_validation": 21,
+    "ludb_total": 200,
+    "ludb_adaptation": 20,
+    "ludb_test": 180
+  },
+  "artifacts": {
+    "manifest": "/Users/vishwam/VSCode/PQRST_mapping/reviewer2_artifacts/colab_run_manifest.json",
+    "normalization": "/Users/vishwam/VSCode/PQRST_mapping/reviewer2_artifacts/reviewer2_qtdb_normalization.npz",
+    "checkpoint_directory": "/Users/vishwam/VSCode/PQRST_mapping/reviewer2_artifacts/checkpoints",
+    "state_directory": "/Users/vishwam/VSCode/PQRST_mapping/reviewer2_artifacts/state",
+    "metrics": "/Users/vishwam/VSCode/PQRST_mapping/reviewer2_artifacts/matched_ablation_metrics.csv"
+  },
+  "limitations": [
+    "Quick and pilot profiles are validation runs, not Reviewer 2 final results.",
+    "The current target representation is background/P/T; QRS delineation is not claimed.",
+    "No event-boundary or external-delineator result is included in this Reviewer 2 package."
+  ]
+}

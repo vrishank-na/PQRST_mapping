@@ -1,0 +1,8 @@
+{
+  "last_completed_model": "R6_QTDB",
+  "last_completed_epoch": 15,
+  "best_epoch": 14,
+  "best_validation_loss": 0.18629488878536457,
+  "profile": "matched_ablation",
+  "time": 1788872118.9463522
+}
