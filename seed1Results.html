@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<body>
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>Experiment</th>
+      <th>Records</th>
+      <th>Windows</th>
+      <th>Post samples</th>
+      <th>Accuracy</th>
+      <th>P precision</th>
+      <th>P recall</th>
+      <th>P F1</th>
+      <th>T precision</th>
+      <th>T recall</th>
+      <th>...</th>
+      <th>Macro F1</th>
+      <th>Weighted F1</th>
+      <th>Seed</th>
+      <th>best_epoch</th>
+      <th>best_validation_loss</th>
+      <th>post_samples</th>
+      <th>Best epoch</th>
+      <th>Best validation loss</th>
+      <th>R4 threshold</th>
+      <th>R6 adaptation epochs</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>R1</td>
+      <td>180</td>
+      <td>1710</td>
+      <td>240</td>
+      <td>0.881831</td>
+      <td>0.778594</td>
+      <td>0.800453</td>
+      <td>0.789372</td>
+      <td>0.768349</td>
+      <td>0.727259</td>
+      <td>...</td>
+      <td>0.819305</td>
+      <td>0.881368</td>
+      <td>1</td>
+      <td>14.0</td>
+      <td>0.194496</td>
+      <td>240.0</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>R2</td>
+      <td>180</td>
+      <td>1710</td>
+      <td>240</td>
+      <td>0.855689</td>
+      <td>0.688453</td>
+      <td>0.869567</td>
+      <td>0.768483</td>
+      <td>0.655985</td>
+      <td>0.835386</td>
+      <td>...</td>
+      <td>0.800885</td>
+      <td>0.860865</td>
+      <td>1</td>
+      <td>6.0</td>
+      <td>0.042836</td>
+      <td>240.0</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>R3</td>
+      <td>180</td>
+      <td>1710</td>
+      <td>240</td>
+      <td>0.874241</td>
+      <td>0.752113</td>
+      <td>0.768278</td>
+      <td>0.760109</td>
+      <td>0.756783</td>
+      <td>0.735622</td>
+      <td>...</td>
+      <td>0.807444</td>
+      <td>0.874087</td>
+      <td>1</td>
+      <td>11.0</td>
+      <td>0.056653</td>
+      <td>240.0</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>R4</td>
+      <td>180</td>
+      <td>1710</td>
+      <td>240</td>
+      <td>0.839750</td>
+      <td>0.775884</td>
+      <td>0.424571</td>
+      <td>0.548822</td>
+      <td>0.799012</td>
+      <td>0.574435</td>
+      <td>...</td>
+      <td>0.705313</td>
+      <td>0.826168</td>
+      <td>1</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>14.0</td>
+      <td>0.194496</td>
+      <td>0.55</td>
+      <td>NaN</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>R5</td>
+      <td>180</td>
+      <td>1655</td>
+      <td>320</td>
+      <td>0.878075</td>
+      <td>0.771089</td>
+      <td>0.831141</td>
+      <td>0.799990</td>
+      <td>0.772157</td>
+      <td>0.758271</td>
+      <td>...</td>
+      <td>0.827170</td>
+      <td>0.878311</td>
+      <td>1</td>
+      <td>13.0</td>
+      <td>0.190187</td>
+      <td>320.0</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+    </tr>
+    <tr>
+      <th>5</th>
+      <td>R6 adapted</td>
+      <td>180</td>
+      <td>1655</td>
+      <td>320</td>
+      <td>0.889386</td>
+      <td>0.786752</td>
+      <td>0.837123</td>
+      <td>0.811156</td>
+      <td>0.781606</td>
+      <td>0.817578</td>
+      <td>...</td>
+      <td>0.844506</td>
+      <td>0.890248</td>
+      <td>1</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>14.0</td>
+      <td>0.186295</td>
+      <td>NaN</td>
+      <td>8.0</td>
+    </tr>
+  </tbody>
+</table>
+<p>6 rows × 21 columns</p>
+</div>
+</body>
+</html>
