@@ -1,0 +1,359 @@
+{
+  "model": "R6 adapted",
+  "seed": 1,
+  "record_id": "89",
+  "sampling_frequency_hz": 250.0,
+  "reference_length": 2500,
+  "prediction_length": 2500,
+  "length_valid": true,
+  "rows": [
+    {
+      "Wave": "P",
+      "Reference": 9,
+      "Predicted": 11,
+      "TP": 8,
+      "FP": 3,
+      "FN": 1,
+      "Sensitivity": 0.8888888888888888,
+      "PPV": 0.7272727272727273,
+      "F1": 0.7999999999999999,
+      "Missed": 1,
+      "False": 3,
+      "Onset MAE": 5.5,
+      "Offset MAE": 15.0,
+      "seed": 1,
+      "record_id": "89",
+      "sampling_frequency_hz": 250.0,
+      "reference_length": 2500,
+      "prediction_length": 2500
+    },
+    {
+      "Wave": "T",
+      "Reference": 9,
+      "Predicted": 12,
+      "TP": 9,
+      "FP": 3,
+      "FN": 0,
+      "Sensitivity": 1.0,
+      "PPV": 0.75,
+      "F1": 0.8571428571428571,
+      "Missed": 0,
+      "False": 3,
+      "Onset MAE": 18.22222222222222,
+      "Offset MAE": 4.888888888888889,
+      "seed": 1,
+      "record_id": "89",
+      "sampling_frequency_hz": 250.0,
+      "reference_length": 2500,
+      "prediction_length": 2500
+    }
+  ],
+  "boundary_errors": [
+    {
+      "Wave": "P",
+      "Boundary": "Onset",
+      "error_samples": 2,
+      "error_ms": 8.0,
+      "seed": 1,
+      "record_id": "89",
+      "sampling_frequency_hz": 250.0
+    },
+    {
+      "Wave": "P",
+      "Boundary": "Offset",
+      "error_samples": -2,
+      "error_ms": -8.0,
+      "seed": 1,
+      "record_id": "89",
+      "sampling_frequency_hz": 250.0
+    },
+    {
+      "Wave": "P",
+      "Boundary": "Onset",
+      "error_samples": 1,
+      "error_ms": 4.0,
+      "seed": 1,
+      "record_id": "89",
+      "sampling_frequency_hz": 250.0
+    },
+    {
+      "Wave": "P",
+      "Boundary": "Offset",
+      "error_samples": -1,
+      "error_ms": -4.0,
+      "seed": 1,
+      "record_id": "89",
+      "sampling_frequency_hz": 250.0
+    },
+    {
+      "Wave": "P",
+      "Boundary": "Onset",
+      "error_samples": 1,
+      "error_ms": 4.0,
+      "seed": 1,
+      "record_id": "89",
+      "sampling_frequency_hz": 250.0
+    },
+    {
+      "Wave": "P",
+      "Boundary": "Offset",
+      "error_samples": 0,
+      "error_ms": 0.0,
+      "seed": 1,
+      "record_id": "89",
+      "sampling_frequency_hz": 250.0
+    },
+    {
+      "Wave": "P",
+      "Boundary": "Onset",
+      "error_samples": 1,
+      "error_ms": 4.0,
+      "seed": 1,
+      "record_id": "89",
+      "sampling_frequency_hz": 250.0
+    },
+    {
+      "Wave": "P",
+      "Boundary": "Offset",
+      "error_samples": 0,
+      "error_ms": 0.0,
+      "seed": 1,
+      "record_id": "89",
+      "sampling_frequency_hz": 250.0
+    },
+    {
+      "Wave": "P",
+      "Boundary": "Onset",
+      "error_samples": 2,
+      "error_ms": 8.0,
+      "seed": 1,
+      "record_id": "89",
+      "sampling_frequency_hz": 250.0
+    },
+    {
+      "Wave": "P",
+      "Boundary": "Offset",
+      "error_samples": -1,
+      "error_ms": -4.0,
+      "seed": 1,
+      "record_id": "89",
+      "sampling_frequency_hz": 250.0
+    },
+    {
+      "Wave": "P",
+      "Boundary": "Onset",
+      "error_samples": 1,
+      "error_ms": 4.0,
+      "seed": 1,
+      "record_id": "89",
+      "sampling_frequency_hz": 250.0
+    },
+    {
+      "Wave": "P",
+      "Boundary": "Offset",
+      "error_samples": -2,
+      "error_ms": -8.0,
+      "seed": 1,
+      "record_id": "89",
+      "sampling_frequency_hz": 250.0
+    },
+    {
+      "Wave": "P",
+      "Boundary": "Onset",
+      "error_samples": 0,
+      "error_ms": 0.0,
+      "seed": 1,
+      "record_id": "89",
+      "sampling_frequency_hz": 250.0
+    },
+    {
+      "Wave": "P",
+      "Boundary": "Offset",
+      "error_samples": -2,
+      "error_ms": -8.0,
+      "seed": 1,
+      "record_id": "89",
+      "sampling_frequency_hz": 250.0
+    },
+    {
+      "Wave": "P",
+      "Boundary": "Onset",
+      "error_samples": 3,
+      "error_ms": 12.0,
+      "seed": 1,
+      "record_id": "89",
+      "sampling_frequency_hz": 250.0
+    },
+    {
+      "Wave": "P",
+      "Boundary": "Offset",
+      "error_samples": -22,
+      "error_ms": -88.0,
+      "seed": 1,
+      "record_id": "89",
+      "sampling_frequency_hz": 250.0
+    },
+    {
+      "Wave": "T",
+      "Boundary": "Onset",
+      "error_samples": -1,
+      "error_ms": -4.0,
+      "seed": 1,
+      "record_id": "89",
+      "sampling_frequency_hz": 250.0
+    },
+    {
+      "Wave": "T",
+      "Boundary": "Offset",
+      "error_samples": 1,
+      "error_ms": 4.0,
+      "seed": 1,
+      "record_id": "89",
+      "sampling_frequency_hz": 250.0
+    },
+    {
+      "Wave": "T",
+      "Boundary": "Onset",
+      "error_samples": 0,
+      "error_ms": 0.0,
+      "seed": 1,
+      "record_id": "89",
+      "sampling_frequency_hz": 250.0
+    },
+    {
+      "Wave": "T",
+      "Boundary": "Offset",
+      "error_samples": 1,
+      "error_ms": 4.0,
+      "seed": 1,
+      "record_id": "89",
+      "sampling_frequency_hz": 250.0
+    },
+    {
+      "Wave": "T",
+      "Boundary": "Onset",
+      "error_samples": 0,
+      "error_ms": 0.0,
+      "seed": 1,
+      "record_id": "89",
+      "sampling_frequency_hz": 250.0
+    },
+    {
+      "Wave": "T",
+      "Boundary": "Offset",
+      "error_samples": 1,
+      "error_ms": 4.0,
+      "seed": 1,
+      "record_id": "89",
+      "sampling_frequency_hz": 250.0
+    },
+    {
+      "Wave": "T",
+      "Boundary": "Onset",
+      "error_samples": -3,
+      "error_ms": -12.0,
+      "seed": 1,
+      "record_id": "89",
+      "sampling_frequency_hz": 250.0
+    },
+    {
+      "Wave": "T",
+      "Boundary": "Offset",
+      "error_samples": 0,
+      "error_ms": 0.0,
+      "seed": 1,
+      "record_id": "89",
+      "sampling_frequency_hz": 250.0
+    },
+    {
+      "Wave": "T",
+      "Boundary": "Onset",
+      "error_samples": 6,
+      "error_ms": 24.0,
+      "seed": 1,
+      "record_id": "89",
+      "sampling_frequency_hz": 250.0
+    },
+    {
+      "Wave": "T",
+      "Boundary": "Offset",
+      "error_samples": 0,
+      "error_ms": 0.0,
+      "seed": 1,
+      "record_id": "89",
+      "sampling_frequency_hz": 250.0
+    },
+    {
+      "Wave": "T",
+      "Boundary": "Onset",
+      "error_samples": 5,
+      "error_ms": 20.0,
+      "seed": 1,
+      "record_id": "89",
+      "sampling_frequency_hz": 250.0
+    },
+    {
+      "Wave": "T",
+      "Boundary": "Offset",
+      "error_samples": 3,
+      "error_ms": 12.0,
+      "seed": 1,
+      "record_id": "89",
+      "sampling_frequency_hz": 250.0
+    },
+    {
+      "Wave": "T",
+      "Boundary": "Onset",
+      "error_samples": 9,
+      "error_ms": 36.0,
+      "seed": 1,
+      "record_id": "89",
+      "sampling_frequency_hz": 250.0
+    },
+    {
+      "Wave": "T",
+      "Boundary": "Offset",
+      "error_samples": 0,
+      "error_ms": 0.0,
+      "seed": 1,
+      "record_id": "89",
+      "sampling_frequency_hz": 250.0
+    },
+    {
+      "Wave": "T",
+      "Boundary": "Onset",
+      "error_samples": 8,
+      "error_ms": 32.0,
+      "seed": 1,
+      "record_id": "89",
+      "sampling_frequency_hz": 250.0
+    },
+    {
+      "Wave": "T",
+      "Boundary": "Offset",
+      "error_samples": 3,
+      "error_ms": 12.0,
+      "seed": 1,
+      "record_id": "89",
+      "sampling_frequency_hz": 250.0
+    },
+    {
+      "Wave": "T",
+      "Boundary": "Onset",
+      "error_samples": 9,
+      "error_ms": 36.0,
+      "seed": 1,
+      "record_id": "89",
+      "sampling_frequency_hz": 250.0
+    },
+    {
+      "Wave": "T",
+      "Boundary": "Offset",
+      "error_samples": 2,
+      "error_ms": 8.0,
+      "seed": 1,
+      "record_id": "89",
+      "sampling_frequency_hz": 250.0
+    }
+  ]
+}

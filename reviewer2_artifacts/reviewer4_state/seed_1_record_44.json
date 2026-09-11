@@ -1,0 +1,197 @@
+{
+  "model": "R6 adapted",
+  "seed": 1,
+  "record_id": "44",
+  "sampling_frequency_hz": 250.0,
+  "reference_length": 2500,
+  "prediction_length": 2500,
+  "length_valid": true,
+  "rows": [
+    {
+      "Wave": "P",
+      "Reference": 0,
+      "Predicted": 4,
+      "TP": 0,
+      "FP": 4,
+      "FN": 0,
+      "Sensitivity": 0.0,
+      "PPV": 0.0,
+      "F1": 0.0,
+      "Missed": 0,
+      "False": 4,
+      "Onset MAE": NaN,
+      "Offset MAE": NaN,
+      "seed": 1,
+      "record_id": "44",
+      "sampling_frequency_hz": 250.0,
+      "reference_length": 2500,
+      "prediction_length": 2500
+    },
+    {
+      "Wave": "T",
+      "Reference": 8,
+      "Predicted": 13,
+      "TP": 8,
+      "FP": 5,
+      "FN": 0,
+      "Sensitivity": 1.0,
+      "PPV": 0.6153846153846154,
+      "F1": 0.761904761904762,
+      "Missed": 0,
+      "False": 5,
+      "Onset MAE": 28.0,
+      "Offset MAE": 27.5,
+      "seed": 1,
+      "record_id": "44",
+      "sampling_frequency_hz": 250.0,
+      "reference_length": 2500,
+      "prediction_length": 2500
+    }
+  ],
+  "boundary_errors": [
+    {
+      "Wave": "T",
+      "Boundary": "Onset",
+      "error_samples": -1,
+      "error_ms": -4.0,
+      "seed": 1,
+      "record_id": "44",
+      "sampling_frequency_hz": 250.0
+    },
+    {
+      "Wave": "T",
+      "Boundary": "Offset",
+      "error_samples": 1,
+      "error_ms": 4.0,
+      "seed": 1,
+      "record_id": "44",
+      "sampling_frequency_hz": 250.0
+    },
+    {
+      "Wave": "T",
+      "Boundary": "Onset",
+      "error_samples": -3,
+      "error_ms": -12.0,
+      "seed": 1,
+      "record_id": "44",
+      "sampling_frequency_hz": 250.0
+    },
+    {
+      "Wave": "T",
+      "Boundary": "Offset",
+      "error_samples": 5,
+      "error_ms": 20.0,
+      "seed": 1,
+      "record_id": "44",
+      "sampling_frequency_hz": 250.0
+    },
+    {
+      "Wave": "T",
+      "Boundary": "Onset",
+      "error_samples": 3,
+      "error_ms": 12.0,
+      "seed": 1,
+      "record_id": "44",
+      "sampling_frequency_hz": 250.0
+    },
+    {
+      "Wave": "T",
+      "Boundary": "Offset",
+      "error_samples": -1,
+      "error_ms": -4.0,
+      "seed": 1,
+      "record_id": "44",
+      "sampling_frequency_hz": 250.0
+    },
+    {
+      "Wave": "T",
+      "Boundary": "Onset",
+      "error_samples": 18,
+      "error_ms": 72.0,
+      "seed": 1,
+      "record_id": "44",
+      "sampling_frequency_hz": 250.0
+    },
+    {
+      "Wave": "T",
+      "Boundary": "Offset",
+      "error_samples": -13,
+      "error_ms": -52.0,
+      "seed": 1,
+      "record_id": "44",
+      "sampling_frequency_hz": 250.0
+    },
+    {
+      "Wave": "T",
+      "Boundary": "Onset",
+      "error_samples": 1,
+      "error_ms": 4.0,
+      "seed": 1,
+      "record_id": "44",
+      "sampling_frequency_hz": 250.0
+    },
+    {
+      "Wave": "T",
+      "Boundary": "Offset",
+      "error_samples": -13,
+      "error_ms": -52.0,
+      "seed": 1,
+      "record_id": "44",
+      "sampling_frequency_hz": 250.0
+    },
+    {
+      "Wave": "T",
+      "Boundary": "Onset",
+      "error_samples": -2,
+      "error_ms": -8.0,
+      "seed": 1,
+      "record_id": "44",
+      "sampling_frequency_hz": 250.0
+    },
+    {
+      "Wave": "T",
+      "Boundary": "Offset",
+      "error_samples": -11,
+      "error_ms": -44.0,
+      "seed": 1,
+      "record_id": "44",
+      "sampling_frequency_hz": 250.0
+    },
+    {
+      "Wave": "T",
+      "Boundary": "Onset",
+      "error_samples": -8,
+      "error_ms": -32.0,
+      "seed": 1,
+      "record_id": "44",
+      "sampling_frequency_hz": 250.0
+    },
+    {
+      "Wave": "T",
+      "Boundary": "Offset",
+      "error_samples": -9,
+      "error_ms": -36.0,
+      "seed": 1,
+      "record_id": "44",
+      "sampling_frequency_hz": 250.0
+    },
+    {
+      "Wave": "T",
+      "Boundary": "Onset",
+      "error_samples": -20,
+      "error_ms": -80.0,
+      "seed": 1,
+      "record_id": "44",
+      "sampling_frequency_hz": 250.0
+    },
+    {
+      "Wave": "T",
+      "Boundary": "Offset",
+      "error_samples": 2,
+      "error_ms": 8.0,
+      "seed": 1,
+      "record_id": "44",
+      "sampling_frequency_hz": 250.0
+    }
+  ]
+}

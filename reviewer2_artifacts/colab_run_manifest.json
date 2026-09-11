@@ -6,7 +6,9 @@
     3
   ],
   "epochs": 15,
-  "qtdb_directory": "/Users/vishwam/VSCode/physionet.org/files/qtdb/1.0.0",
+  "project_root": "/Users/vishwam/VSCode/PQRST_mapping",
+  "data_root": "/Users/vishwam/VSCode/PQRST_mapping/data",
+  "qtdb_directory": "/Users/vishwam/VSCode/PQRST_mapping/physionet.org/files/qtdb/1.0.0",
   "ludb_directory": "/Users/vishwam/VSCode/PQRST_mapping/physionet.org/files/ludb/1.0.1/data",
   "qtdb_train_records": [
     "sel100",
@@ -329,8 +331,14 @@
   "r6_adaptation_epochs": 8,
   "qtdb_train_windows_240": 87111,
   "qtdb_validation_windows_240": 22799,
+  "qtdb_train_windows_320": 87088,
+  "qtdb_validation_windows_320": 22793,
   "ludb_adaptation_windows_240": 194,
   "ludb_test_windows_240": 1710,
+  "ludb_adaptation_windows_320": 183,
+  "ludb_test_windows_320": 1655,
   "qtdb_train_mean_240": -0.09923742711544037,
-  "qtdb_train_std_240": 2.701373815536499
+  "qtdb_train_std_240": 2.701373815536499,
+  "qtdb_train_mean_320": -0.10051126778125763,
+  "qtdb_train_std_320": 2.7010133266448975
 }

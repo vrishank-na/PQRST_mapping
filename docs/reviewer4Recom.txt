@@ -1,0 +1,1080 @@
+# TASK: Implement Reviewer 4 Evaluation in `trainingLoopForCOLAB`
+
+We need to address **Reviewer 4** of the paper.
+
+IMPORTANT TERMINOLOGY:
+
+* `R1–R6` are our ORIGINAL ML experiments/configurations.
+* They are NOT Reviewer 1–6.
+* Do not rename or reinterpret them.
+* Reviewer 4 is a conference-review requirement and is separate from our original `R4` experiment.
+
+We are working in the existing:
+
+`trainingLoopForCOLAB.ipynb`
+
+The goal is to add the missing **event-level and boundary-level ECG evaluation** on top of the existing trained models and predictions.
+
+---
+
+# 1. FIRST: UNDERSTAND AND PRESERVE THE EXISTING NOTEBOOK
+
+Before modifying anything, inspect the notebook completely.
+
+The existing notebook already contains:
+
+* QTDB/LUDB downloading
+* 105 QTDB records
+* 200 LUDB records
+* QTDB 84/21 record-level split
+* LUDB 20/180 adaptation/test split
+* train-only normalization
+* loading of the reviewed model/helper definitions
+* `RPeakGuidedML2`
+* `RPeakTimeML2`
+* `FocalLoss`
+* `make_loader`
+* `run_training_epoch`
+* `predict`
+* `predict_probabilities`
+* `classification_row`
+* R1–R6 training/execution
+* 3 seeds
+* checkpointing
+* existing sample-wise metrics
+* existing final summaries
+
+DO NOT replace any of these.
+
+DO NOT retrain the models.
+
+DO NOT modify the R1–R6 training protocol.
+
+Reviewer 4 should be implemented as an **evaluation layer using the already-trained model/checkpoint outputs**.
+
+---
+
+# 2. VERY IMPORTANT: CURRENT CLASSIFICATION TASK
+
+Our effective ML2 target is:
+
+```text
+0 = Background
+1 = P wave
+2 = T wave
+```
+
+QRS samples are collapsed into the Background class in the current ML2 formulation.
+
+Therefore:
+
+### We WILL evaluate:
+
+* P-wave events
+* T-wave events
+* Background as the non-P/T class
+
+### We WILL NOT claim:
+
+* QRS onset delineation
+* QRS offset delineation
+* QRS event detection performance
+
+Do not introduce a fake QRS evaluation merely because QRS annotations exist in the source datasets.
+
+If QRS is encountered in the annotation-processing code, preserve the existing mapping used by the notebook.
+
+---
+
+# 3. WHAT REVIEWER 4 IS ASKING FOR
+
+Reviewer 4 requires evaluation beyond sample-wise classification.
+
+The existing notebook already reports metrics such as:
+
+* Accuracy
+* Macro F1
+* Weighted F1
+* P F1
+* T F1
+* Precision/recall-type classification metrics
+
+Those are useful, but they are **sample-level metrics**.
+
+Reviewer 4 additionally requires us to evaluate the model at the level of **individual physiological P/T waves**.
+
+Therefore the new pipeline must be:
+
+```text
+Existing trained model
+        ↓
+Existing prediction pipeline
+        ↓
+Full-record sample-wise predictions
+        ↓
+Extract individual P/T events
+        ↓
+Match predicted events to reference events
+        ↓
+Event-level TP / FP / FN
+        ↓
+Sensitivity / PPV / F1
+        ↓
+Onset / offset comparison
+        ↓
+Timing errors in milliseconds
+        ↓
+Per-record + aggregate statistics
+```
+
+---
+
+# 4. DO NOT RETRAIN
+
+This is critical.
+
+Do NOT run:
+
+```text
+15 epochs
+3 seeds
+new architecture
+new optimizer
+new split
+```
+
+for Reviewer 4.
+
+The models already exist.
+
+Use the existing checkpoints and prediction functions.
+
+If completed checkpoints already exist in the artifact/checkpoint directory, load them.
+
+If the notebook's existing execution has to be run first to generate predictions/checkpoints, use the existing execution exactly as written.
+
+Reviewer 4 itself should require **no new ML training**.
+
+---
+
+# 5. IDENTIFY THE PRIMARY MODEL TO EVALUATE
+
+Inspect the notebook and determine which existing model/checkpoint corresponds to the model configuration that should be reported as the primary model in the paper.
+
+Do not arbitrarily choose a checkpoint.
+
+Prefer the final/main model configuration used for the paper.
+
+If the notebook's R1–R6 results are the only available predictions, clearly identify which one is being used.
+
+For every evaluation result store:
+
+```text
+model/configuration
+seed
+record ID
+sampling frequency
+```
+
+Do not mix predictions from different R1–R6 variants.
+
+---
+
+# 6. USE THE EXISTING DATA PIPELINE
+
+Reuse:
+
+* existing LUDB test records
+* existing test windows
+* existing normalization
+* existing resampling
+* existing label representation
+* existing prediction function
+* existing record IDs
+
+The existing notebook uses:
+
+```text
+LUDB:
+20 adaptation records
+180 untouched test records
+```
+
+The Reviewer 4 evaluation must use the **180 untouched LUDB test records**.
+
+Do NOT evaluate on the 20 adaptation records.
+
+Do NOT use adaptation records as test data.
+
+---
+
+# 7. CRITICAL: RECONSTRUCT FULL RECORDS BEFORE EVENT EVALUATION
+
+The model predicts using windows.
+
+Therefore, Reviewer 4 event evaluation must NOT treat each window as an independent ECG.
+
+We need:
+
+```text
+window predictions
+        ↓
+existing reconstruction/record mapping
+        ↓
+one full prediction sequence per ECG record
+```
+
+For each record:
+
+```python
+len(y_true_record) == len(y_pred_record)
+```
+
+must be true.
+
+Before proceeding, create a validation table:
+
+```text
+record_id | reference_length | prediction_length | valid
+```
+
+Every record must pass.
+
+If the notebook already has a reconstruction function, USE IT.
+
+Do not create an alternative reconstruction algorithm without first determining how the notebook currently maps windows back to records.
+
+---
+
+# 8. VERIFY THE CLASS LABELS
+
+Before evaluation, print/verify:
+
+```text
+0 → Background
+1 → P
+2 → T
+```
+
+and assert:
+
+```python
+assert set(np.unique(y_true_record)).issubset({0,1,2})
+assert set(np.unique(y_pred_record)).issubset({0,1,2})
+```
+
+If the existing arrays use another representation internally, map them correctly rather than blindly forcing this assertion.
+
+---
+
+# 9. EXTRACT INDIVIDUAL P/T EVENTS
+
+This is the main new component.
+
+Create a function:
+
+```python
+extract_events(labels, target_class)
+```
+
+It should convert a sample-wise sequence into contiguous events.
+
+For example:
+
+```text
+Background Background
+P P P P P
+Background
+T T T T
+Background
+P P P
+```
+
+becomes:
+
+```text
+P event 1: onset → offset
+T event 1: onset → offset
+P event 2: onset → offset
+```
+
+For each event store:
+
+```python
+{
+    "class": "P",
+    "onset": integer_sample,
+    "offset": integer_sample
+}
+```
+
+and similarly for T.
+
+Implement this independently for:
+
+```text
+P = class 1
+T = class 2
+```
+
+Do NOT extract QRS events.
+
+---
+
+# 10. REFERENCE EVENTS MUST COME FROM THE GROUND TRUTH
+
+For reference P/T events:
+
+* use the existing ground-truth labels/annotations already used by the notebook
+* do not derive reference events from model predictions
+* do not use the predicted signal to define reference boundaries
+
+The reference and predicted event extraction must use the same coordinate system.
+
+This is particularly important because the notebook performs LUDB resampling.
+
+If LUDB was originally sampled at 500 Hz and converted to 250 Hz, make sure annotation coordinates and predictions are both in the same 250-Hz coordinate system.
+
+Do not mix original 500-Hz indices with resampled 250-Hz indices.
+
+---
+
+# 11. EVENT MATCHING
+
+We now need to determine whether a predicted P/T event corresponds to a reference P/T event.
+
+Use **one-to-one matching**.
+
+For example:
+
+```text
+one reference P ↔️ at most one predicted P
+one reference T ↔️ at most one predicted T
+```
+
+Do not count multiple predictions against the same reference event.
+
+Do not use sample overlap alone as the definition of a detected event.
+
+---
+
+# 12. MATCHING CRITERION
+
+Define an explicit temporal matching tolerance.
+
+The tolerance must be reported in:
+
+```text
+samples
+milliseconds
+```
+
+First inspect the notebook/paper to determine whether a matching tolerance is already defined.
+
+If one exists, reuse it.
+
+If none exists, select a defensible tolerance and document:
+
+```text
+matching tolerance = X samples = Y ms at 250 Hz
+```
+
+Do not silently choose a number.
+
+Prefer a center-based matching rule if no more appropriate existing rule is available:
+
+```python
+reference_center = (reference_onset + reference_offset) / 2
+predicted_center = (predicted_onset + predicted_offset) / 2
+
+abs(predicted_center - reference_center) <= tolerance
+```
+
+If the teammate identifies a more appropriate established event-matching rule already supported by the notebook/data, use that instead and document it.
+
+The important requirement is:
+
+**the rule must be explicit, deterministic, and one-to-one.**
+
+---
+
+# 13. EVENT-LEVEL TP / FP / FN
+
+For P:
+
+```text
+TP_P
+FP_P
+FN_P
+```
+
+For T:
+
+```text
+TP_T
+FP_T
+FN_T
+```
+
+Definitions:
+
+```text
+TP = matched predicted/reference event
+FP = predicted event with no reference match
+FN = reference event with no prediction match
+```
+
+Then calculate:
+
+```python
+Sensitivity = TP / (TP + FN)
+
+PPV = TP / (TP + FP)
+
+F1 = 2 * PPV * Sensitivity / (PPV + Sensitivity)
+```
+
+Use safe zero-division handling.
+
+These must be explicitly labelled:
+
+> EVENT-LEVEL sensitivity / PPV / F1
+
+Do NOT confuse them with the notebook's existing sample-level precision/recall/F1.
+
+---
+
+# 14. MISSED AND FALSE WAVES
+
+For both P and T calculate:
+
+```text
+reference events
+predicted events
+matched events
+missed events
+false events
+```
+
+Create:
+
+```text
+Wave | Reference | Predicted | Matched | Missed | False
+P
+T
+```
+
+This directly addresses missed-wave and false-wave evaluation.
+
+---
+
+# 15. ONSET ERROR
+
+For every matched event calculate:
+
+```python
+onset_error_samples = predicted_onset - reference_onset
+```
+
+Preserve the sign.
+
+Interpretation:
+
+```text
+negative → predicted onset earlier than reference
+positive → predicted onset later than reference
+```
+
+Then:
+
+```python
+onset_error_ms = onset_error_samples / fs * 1000
+```
+
+Use the actual sampling frequency after preprocessing/resampling.
+
+Do NOT hard-code 4 ms/sample without verifying the notebook's actual final sampling rate.
+
+For LUDB at 250 Hz:
+
+```text
+1 sample = 4 ms
+```
+
+but calculate it from `fs` in code.
+
+---
+
+# 16. OFFSET ERROR
+
+For every matched event:
+
+```python
+offset_error_samples = predicted_offset - reference_offset
+```
+
+Then:
+
+```python
+offset_error_ms = offset_error_samples / fs * 1000
+```
+
+Again preserve the sign.
+
+---
+
+# 17. BOUNDARY STATISTICS
+
+For each of:
+
+```text
+P onset
+P offset
+T onset
+T offset
+```
+
+calculate:
+
+### Signed timing error
+
+```text
+mean error
+standard deviation
+median error
+```
+
+### Absolute timing error
+
+```text
+MAE
+median absolute error
+```
+
+Also provide:
+
+```text
+minimum
+maximum
+```
+
+if useful.
+
+The main table should be:
+
+```text
+Wave | Boundary | Mean Error (ms) | SD (ms) | MAE (ms) | Median AE (ms)
+P    | Onset
+P    | Offset
+T    | Onset
+T    | Offset
+```
+
+---
+
+# 18. PER-RECORD EVALUATION
+
+This is important.
+
+Do not only pool all events from all 180 records.
+
+For every LUDB test record generate:
+
+```text
+record_id
+
+P reference count
+P predicted count
+P TP
+P FP
+P FN
+P sensitivity
+P PPV
+P F1
+P onset MAE
+P offset MAE
+
+T reference count
+T predicted count
+T TP
+T FP
+T FN
+T sensitivity
+T PPV
+T F1
+T onset MAE
+T offset MAE
+```
+
+Store this as:
+
+```python
+reviewer4_per_record_df
+```
+
+---
+
+# 19. RECORD-LEVEL SUMMARY
+
+Calculate across records:
+
+```text
+mean
+median
+SD
+```
+
+for the per-record metrics.
+
+At minimum:
+
+```text
+P F1
+T F1
+P sensitivity
+T sensitivity
+P PPV
+T PPV
+P onset MAE
+P offset MAE
+T onset MAE
+T offset MAE
+```
+
+This tells us whether performance is consistent across records rather than being dominated by a few long recordings.
+
+---
+
+# 20. OVERALL EVENT TABLE
+
+Create a clean table:
+
+| Wave | TP | FP | FN | Sensitivity | PPV | F1 |
+| ---- | -: | -: | -: | ----------: | --: | -: |
+| P    |    |    |    |             |     |    |
+| T    |    |    |    |             |     |    |
+
+Title:
+
+**Event-Level P/T Detection Performance on Untouched LUDB Test Set**
+
+Do not include QRS.
+
+---
+
+# 21. MISSED/FALSE EVENT TABLE
+
+Create:
+
+| Wave | Reference Events | Predicted Events | Matched | Missed | False |
+| ---- | ---------------: | ---------------: | ------: | -----: | ----: |
+| P    |                  |                  |         |        |       |
+| T    |                  |                  |         |        |       |
+
+---
+
+# 22. BOUNDARY ERROR TABLE
+
+Create:
+
+| Wave | Boundary | Mean Error (ms) | SD (ms) | MAE (ms) | Median AE (ms) |
+| ---- | -------- | --------------: | ------: | -------: | -------------: |
+| P    | Onset    |                 |         |          |                |
+| P    | Offset   |                 |         |          |                |
+| T    | Onset    |                 |         |          |                |
+| T    | Offset   |                 |         |          |                |
+
+---
+
+# 23. OPTIONAL DISTRIBUTION FIGURE
+
+If the number of matched events is sufficient, create a useful figure showing boundary-error distributions.
+
+Possible figure:
+
+```text
+P onset error
+P offset error
+T onset error
+T offset error
+```
+
+A boxplot is sufficient.
+
+Do not generate unnecessary figures.
+
+The figure must clearly show the units are milliseconds.
+
+---
+
+# 24. OPTIONAL EXAMPLE ECG FIGURE
+
+If easy to implement using the existing notebook data, generate 1–3 representative full-record examples showing:
+
+```text
+ECG signal
+reference P/T boundaries
+predicted P/T boundaries
+```
+
+This is useful for visually demonstrating event-level agreement.
+
+However:
+
+* do not cherry-pick only perfect examples
+* clearly label them as representative examples
+* do not use this figure as a substitute for quantitative evaluation
+
+---
+
+# 25. PATHOLOGY-LEVEL ANALYSIS
+
+Inspect the LUDB metadata already available.
+
+If reliable pathology/diagnosis labels are available for every relevant test record, calculate event-level metrics grouped by pathology.
+
+For each pathology:
+
+```text
+number of records
+P sensitivity
+P PPV
+P F1
+T sensitivity
+T PPV
+T F1
+P onset MAE
+P offset MAE
+T onset MAE
+T offset MAE
+```
+
+If reliable pathology labels are NOT available in the current notebook/data pipeline:
+
+DO NOT invent them.
+
+Instead explicitly state:
+
+> Pathology-stratified analysis was not performed because reliable record-level pathology labels were not available in the current evaluation pipeline.
+
+Then use record-level variability as the heterogeneity analysis.
+
+---
+
+# 26. SANITY CHECKS
+
+Implement all of the following.
+
+### A. Prediction/reference length
+
+```python
+assert len(y_true_record) == len(y_pred_record)
+```
+
+### B. Valid classes
+
+```python
+assert set(np.unique(y_true_record)).issubset({0,1,2})
+assert set(np.unique(y_pred_record)).issubset({0,1,2})
+```
+
+### C. Event boundaries
+
+For every event:
+
+```text
+onset <= offset
+```
+
+### D. Event matching uniqueness
+
+Verify:
+
+```text
+one reference event cannot match two predictions
+one prediction cannot match two references
+```
+
+### E. TP/FP/FN consistency
+
+For each wave:
+
+```text
+TP + FN = number of reference events
+
+TP + FP = number of predicted events
+```
+
+### F. Timing conversion
+
+Verify:
+
+```python
+ms_per_sample = 1000.0 / fs
+```
+
+and use this conversion consistently.
+
+### G. Test-set integrity
+
+Verify:
+
+```text
+Reviewer 4 evaluation records
+=
+180 untouched LUDB test records
+```
+
+and:
+
+```text
+adaptation records ∩ test records = empty
+```
+
+---
+
+# 27. DO NOT MODIFY EXISTING RESULTS
+
+The current R1–R6 results must remain unchanged.
+
+Do not overwrite:
+
+```text
+R1 results
+R2 results
+R3 results
+R4 results
+R5 results
+R6 results
+```
+
+Reviewer 4 results should be stored separately, for example:
+
+```text
+reviewer4_event_results.csv
+reviewer4_boundary_results.csv
+reviewer4_per_record.csv
+reviewer4_missed_false.csv
+```
+
+Use the existing `ARTIFACT_DIR` infrastructure where appropriate.
+
+---
+
+# 28. IMPORTANT: DO NOT USE THE OLD R4 EXPERIMENT AS REVIEWER 4
+
+The notebook contains an original experiment called:
+
+```text
+R4
+```
+
+That experiment uses threshold selection / `r4_decode()` and sample-wise classification evaluation.
+
+That is our original R4 experiment.
+
+It is NOT the conference Reviewer 4 response.
+
+Do not modify `r4_decode()` to try to satisfy Reviewer 4.
+
+Reviewer 4 should be a new evaluation section.
+
+---
+
+# 29. IMPORTANT: R-PEAK INFORMATION
+
+Do not alter the R-peak-guided model.
+
+Reviewer 4 is evaluating the output of the existing physiological representation.
+
+The existing architecture and R-peak-centered processing should remain unchanged.
+
+The purpose here is to demonstrate whether that model actually identifies complete P/T waves accurately at the event and boundary level.
+
+Do not introduce R peaks as an additional prediction class.
+
+---
+
+# 30. FINAL REVIEWER-4 REPORT
+
+At the end of the notebook print:
+
+```text
+============================================================
+REVIEWER 4 — EVENT-LEVEL ECG EVALUATION
+============================================================
+
+Effective classes:
+0 = Background
+1 = P
+2 = T
+QRS collapsed into Background
+
+Evaluation dataset:
+LUDB
+Untouched test records: 180
+
+Model:
+<actual model/configuration>
+
+Seed:
+<actual seed(s)>
+
+Event matching tolerance:
+<X samples = Y ms>
+
+------------------------------------------------------------
+P WAVE
+------------------------------------------------------------
+TP:
+FP:
+FN:
+Sensitivity:
+PPV:
+F1:
+
+Missed:
+False:
+
+Onset MAE:
+Offset MAE:
+
+------------------------------------------------------------
+T WAVE
+------------------------------------------------------------
+TP:
+FP:
+FN:
+Sensitivity:
+PPV:
+F1:
+
+Missed:
+False:
+
+Onset MAE:
+Offset MAE:
+
+------------------------------------------------------------
+BOUNDARY ERRORS
+------------------------------------------------------------
+
+P onset:
+P offset:
+T onset:
+T offset:
+
+------------------------------------------------------------
+PER-RECORD VARIABILITY
+------------------------------------------------------------
+
+P F1:
+T F1:
+P onset MAE:
+P offset MAE:
+T onset MAE:
+T offset MAE:
+
+------------------------------------------------------------
+QRS
+------------------------------------------------------------
+
+QRS boundary evaluation:
+NOT CLAIMED — QRS is collapsed into Background
+in the current 3-class ML2 formulation.
+
+============================================================
+```
+
+---
+
+# 31. SAVE A MACHINE-READABLE SUMMARY
+
+Save a final JSON such as:
+
+```text
+FINAL_REVIEWER_4_RESULTS.json
+```
+
+containing:
+
+```text
+model
+seed(s)
+dataset
+number_of_test_records
+class_mapping
+matching_tolerance_samples
+matching_tolerance_ms
+P event metrics
+T event metrics
+boundary metrics
+record-level summary
+pathology analysis status
+sanity-check status
+```
+
+---
+
+# 32. FINAL DELIVERABLES
+
+When finished, provide me with:
+
+### Code
+
+All new code cells added for Reviewer 4.
+
+### Tables
+
+1. Event-level P/T TP/FP/FN + sensitivity + PPV + F1
+2. Missed/false event counts
+3. Onset/offset error statistics
+4. Per-record variability
+5. Pathology-level analysis if genuinely supported
+
+### Figures
+
+Only useful figures.
+
+### Validation
+
+Show that:
+
+* all 180 test records were evaluated
+* no adaptation record entered evaluation
+* prediction/reference lengths agree
+* matching is one-to-one
+* TP/FP/FN identities are consistent
+* timing conversion is correct
+
+### Interpretation
+
+Give a short statement saying exactly which Reviewer 4 requirements are satisfied.
+
+---
+
+# 33. SCIENTIFIC RESTRICTIONS — ABSOLUTELY NO EXCEPTIONS
+
+Do NOT:
+
+* retrain models
+* change architecture
+* change R1–R6
+* change the test split
+* use adaptation records as test records
+* use test-set statistics for normalization
+* fabricate pathology labels
+* fabricate QRS metrics
+* call sample-level recall "event sensitivity"
+* count samples instead of events
+* allow one prediction to match multiple references
+* silently choose a matching tolerance
+* invent results
+* cherry-pick results
+* alter existing reported results
+
+If something in the existing notebook prevents a requested Reviewer 4 calculation from being performed correctly, **STOP and report the exact issue rather than modifying the scientific pipeline silently.**
+
+The final objective is:
+
+**Keep the existing ML2 implementation completely intact and add a rigorous event-level physiological evaluation layer that directly answers Reviewer 4.**

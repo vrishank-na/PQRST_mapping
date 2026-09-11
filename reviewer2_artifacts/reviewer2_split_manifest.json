@@ -1,5 +1,5 @@
 {
-  "qtdb_directory": "/Users/vishwam/VSCode/physionet.org/files/qtdb/1.0.0",
+  "qtdb_directory": "/Users/vishwam/VSCode/PQRST_mapping/physionet.org/files/qtdb/1.0.0",
   "ludb_directory": "/Users/vishwam/VSCode/PQRST_mapping/physionet.org/files/ludb/1.0.1/data",
   "qtdb_total_records": 105,
   "qtdb_train_records": [
